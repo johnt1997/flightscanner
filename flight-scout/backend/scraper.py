@@ -196,7 +196,7 @@ def create_pdf_report(deals: list[FlightDeal], origin: str, filename="Flight_Rep
 class SkyscannerAPI:
     API_URL = "https://www.skyscanner.at/g/radar/api/v2/web-unified-search/"
     MAX_PRICE = 70
-    WHITELIST_COUNTRIES: list[str] = []  # Leer = alle erlaubt
+    BLACKLIST_COUNTRIES: list[str] = []  # Leer = keine ausgeschlossen
 
     EASTER_START = datetime(2026, 3, 28)
     EASTER_END = datetime(2026, 4, 6)
@@ -403,8 +403,8 @@ class SkyscannerAPI:
             price_per_person = raw_price / self.ADULTS
             country_name = location.get("name")
 
-            # Whitelist check
-            if self.WHITELIST_COUNTRIES and country_name not in self.WHITELIST_COUNTRIES:
+            # Blacklist check
+            if self.BLACKLIST_COUNTRIES and country_name in self.BLACKLIST_COUNTRIES:
                 continue
 
             if price_per_person <= self.MAX_PRICE and location.get("type") == "Nation":

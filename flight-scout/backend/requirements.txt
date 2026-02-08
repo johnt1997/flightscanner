@@ -3,3 +3,4 @@ uvicorn[standard]
 requests
 fpdf2
 pydantic
+bcrypt

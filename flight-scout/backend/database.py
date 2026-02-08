@@ -1,0 +1,213 @@
+"""
+Flight Scout Database - SQLite backend for users, saved deals, and price alerts.
+"""
+
+import sqlite3
+import hashlib
+import hmac
+import base64
+import time
+import os
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "flight_scout.db")
+TOKEN_SECRET = os.environ.get("FLIGHT_SCOUT_SECRET", "flight-scout-default-secret-key")
+
+
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def init_db():
+    conn = get_db()
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS saved_deals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            city TEXT NOT NULL,
+            country TEXT NOT NULL,
+            price REAL NOT NULL,
+            departure_date TEXT,
+            return_date TEXT,
+            flight_time TEXT,
+            is_direct INTEGER DEFAULT 0,
+            url TEXT,
+            origin TEXT,
+            latitude REAL DEFAULT 0,
+            longitude REAL DEFAULT 0,
+            saved_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS price_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            destination_city TEXT NOT NULL,
+            max_price REAL NOT NULL,
+            telegram_chat_id TEXT NOT NULL,
+            active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+    """)
+    conn.close()
+
+
+# --- Auth ---
+
+def hash_password(password: str) -> str:
+    import bcrypt
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    import bcrypt
+    return bcrypt.checkpw(password.encode(), password_hash.encode())
+
+
+def create_token(user_id: int) -> str:
+    timestamp = str(int(time.time()))
+    payload = f"{user_id}:{timestamp}"
+    signature = hmac.new(TOKEN_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()[:16]
+    token_data = f"{payload}:{signature}"
+    return base64.b64encode(token_data.encode()).decode()
+
+
+def verify_token(token: str) -> int | None:
+    try:
+        token_data = base64.b64decode(token.encode()).decode()
+        parts = token_data.split(":")
+        if len(parts) != 3:
+            return None
+        user_id, timestamp, signature = parts
+        expected = hmac.new(TOKEN_SECRET.encode(), f"{user_id}:{timestamp}".encode(), hashlib.sha256).hexdigest()[:16]
+        if not hmac.compare_digest(signature, expected):
+            return None
+        return int(user_id)
+    except Exception:
+        return None
+
+
+# --- Users ---
+
+def create_user(username: str, password: str) -> dict | None:
+    conn = get_db()
+    try:
+        pw_hash = hash_password(password)
+        cursor = conn.execute(
+            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+            (username, pw_hash)
+        )
+        conn.commit()
+        return {"id": cursor.lastrowid, "username": username}
+    except sqlite3.IntegrityError:
+        return None
+    finally:
+        conn.close()
+
+
+def authenticate_user(username: str, password: str) -> dict | None:
+    conn = get_db()
+    row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    conn.close()
+    if row and verify_password(password, row["password_hash"]):
+        return {"id": row["id"], "username": row["username"]}
+    return None
+
+
+# --- Saved Deals ---
+
+def save_deal(user_id: int, deal: dict) -> int:
+    conn = get_db()
+    cursor = conn.execute(
+        """INSERT INTO saved_deals
+           (user_id, city, country, price, departure_date, return_date, flight_time, is_direct, url, origin, latitude, longitude)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (user_id, deal["city"], deal["country"], deal["price"],
+         deal.get("departure_date"), deal.get("return_date"), deal.get("flight_time"),
+         1 if deal.get("is_direct") else 0, deal.get("url"), deal.get("origin"),
+         deal.get("latitude", 0), deal.get("longitude", 0))
+    )
+    conn.commit()
+    deal_id = cursor.lastrowid
+    conn.close()
+    return deal_id
+
+
+def get_user_deals(user_id: int) -> list[dict]:
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM saved_deals WHERE user_id = ? ORDER BY saved_at DESC", (user_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_deal(user_id: int, deal_id: int) -> bool:
+    conn = get_db()
+    cursor = conn.execute(
+        "DELETE FROM saved_deals WHERE id = ? AND user_id = ?", (deal_id, user_id)
+    )
+    conn.commit()
+    deleted = cursor.rowcount > 0
+    conn.close()
+    return deleted
+
+
+# --- Price Alerts ---
+
+def create_alert(user_id: int, destination_city: str, max_price: float, telegram_chat_id: str) -> int:
+    conn = get_db()
+    cursor = conn.execute(
+        """INSERT INTO price_alerts (user_id, destination_city, max_price, telegram_chat_id)
+           VALUES (?, ?, ?, ?)""",
+        (user_id, destination_city, max_price, telegram_chat_id)
+    )
+    conn.commit()
+    alert_id = cursor.lastrowid
+    conn.close()
+    return alert_id
+
+
+def get_user_alerts(user_id: int) -> list[dict]:
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM price_alerts WHERE user_id = ? AND active = 1 ORDER BY created_at DESC",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_all_active_alerts() -> list[dict]:
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM price_alerts WHERE active = 1"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_alert(user_id: int, alert_id: int) -> bool:
+    conn = get_db()
+    cursor = conn.execute(
+        "DELETE FROM price_alerts WHERE id = ? AND user_id = ?", (alert_id, user_id)
+    )
+    conn.commit()
+    deleted = cursor.rowcount > 0
+    conn.close()
+    return deleted
+
+
+# Init DB on import
+init_db()
