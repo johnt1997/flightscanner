@@ -6,8 +6,9 @@ Finde die günstigsten Wochenend-Flüge ab Wien, Bratislava und Budapest.
 
 - **Multi-Airport Suche** – Wien, Bratislava, Budapest gleichzeitig
 - **Flexible Zeiträume** – Fr-So, Do-So, Mo-Mi, etc.
+- **Mehrere Reisedauern** – z.B. 2 und 3 Nächte gleichzeitig suchen
 - **Preisfilter** – Max. Preis pro Person
-- **Zeitfilter** – Keine Flüge vor X Uhr
+- **Zeitfilter** – Frühester Abflug und späteste Rückkehr einstellbar
 - **Länder-Blacklist** – Bestimmte Länder ausschließen
 - **PDF Report** – Download für offline
 - **Direkte Buchungslinks** – Skyscanner URLs
@@ -15,6 +16,10 @@ Finde die günstigsten Wochenend-Flüge ab Wien, Bratislava und Budapest.
 - **Kalender-Heatmap** – Günstigster Preis pro Tag im Monatsüberblick
 - **Deal-Archiv** – Deals speichern und verwalten (mit User-Auth)
 - **Telegram Preis-Alerts** – Benachrichtigung wenn ein Deal unter deinem Wunschpreis liegt
+- **Gruppierte Ergebnisse** – Deals nach Stadt gruppiert mit Akkordeon-UI
+- **Favoriten-Städte** – Lieblingsstädte markieren, werden oben angezeigt
+- **Share-Button** – Deal als formatierte Telegram-Karte in die Zwischenablage kopieren
+- **Dark/Light Mode** – Theme umschaltbar, wird gespeichert
 
 ## Setup
 

@@ -51,10 +51,11 @@ class SearchRequest(BaseModel):
     start_date: str  # "2026-03-20"
     end_date: str  # "2026-04-30"
     start_weekday: int  # 0=Mo, 4=Fr
-    duration: int  # Anzahl Nächte
+    durations: list[int] = [2]  # Anzahl Nächte (mehrere möglich)
     adults: int = 1
     max_price: float = 70.0
     min_departure_hour: int = 14
+    max_return_hour: int = 23
     blacklist_countries: list[str] = []
 
 
@@ -292,39 +293,45 @@ def run_search(job_id: str, request: SearchRequest):
         start_date = datetime.strptime(request.start_date, "%Y-%m-%d")
         end_date = datetime.strptime(request.end_date, "%Y-%m-%d")
 
-        for i, airport_code in enumerate(request.airports):
+        durations = request.durations or [2]
+        total_steps = len(request.airports) * len(durations)
+        step = 0
+
+        for airport_code in request.airports:
             if airport_code not in AIRPORTS:
                 continue
 
             airport = AIRPORTS[airport_code]
-            jobs[job_id]["message"] = f"Suche Flüge ab {airport['name']}..."
-            jobs[job_id]["progress"] = int((i / total_airports) * 80)
 
-            scraper = SkyscannerAPI(
-                origin_entity_id=airport["id"],
-                adults=request.adults,
-                start_hour=request.min_departure_hour,
-                origin_sky_code=airport["code"],
-            )
+            for dur in durations:
+                jobs[job_id]["message"] = f"Suche ab {airport['name']} ({dur} Nächte)..."
+                jobs[job_id]["progress"] = int((step / total_steps) * 80)
+                step += 1
 
-            # Whitelist setzen wenn vorhanden
-            if request.blacklist_countries:
-                scraper.BLACKLIST_COUNTRIES = request.blacklist_countries
+                scraper = SkyscannerAPI(
+                    origin_entity_id=airport["id"],
+                    adults=request.adults,
+                    start_hour=request.min_departure_hour,
+                    origin_sky_code=airport["code"],
+                    max_return_hour=request.max_return_hour,
+                )
 
-            scraper.MAX_PRICE = request.max_price
+                if request.blacklist_countries:
+                    scraper.BLACKLIST_COUNTRIES = request.blacklist_countries
 
-            scraper.run(
-                start_date=start_date,
-                end_date=end_date,
-                start_weekday=request.start_weekday,
-                duration=request.duration,
-            )
+                scraper.MAX_PRICE = request.max_price
 
-            # Airport-Info zu jedem Deal hinzufügen
-            for deal in scraper.deals:
-                deal.origin = airport["name"]
+                scraper.run(
+                    start_date=start_date,
+                    end_date=end_date,
+                    start_weekday=request.start_weekday,
+                    duration=dur,
+                )
 
-            all_deals.extend(scraper.deals)
+                for deal in scraper.deals:
+                    deal.origin = airport["name"]
+
+                all_deals.extend(scraper.deals)
 
         jobs[job_id]["progress"] = 90
         jobs[job_id]["message"] = "Erstelle Report..."

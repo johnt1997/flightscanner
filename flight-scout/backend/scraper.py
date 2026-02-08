@@ -201,7 +201,7 @@ class SkyscannerAPI:
     EASTER_START = datetime(2026, 3, 28)
     EASTER_END = datetime(2026, 4, 6)
 
-    def __init__(self, origin_entity_id="95673444", adults=1, start_hour=14, origin_sky_code="vie"):
+    def __init__(self, origin_entity_id="95673444", adults=1, start_hour=14, origin_sky_code="vie", max_return_hour=23):
         self.session = requests.Session()
         self.traveller_context = str(uuid.uuid4())
         self.view_id = str(uuid.uuid4())
@@ -210,6 +210,7 @@ class SkyscannerAPI:
         self._setup_session()
         self.ADULTS = adults
         self.START_HOUR = start_hour
+        self.MAX_RETURN_HOUR = max_return_hour
         self.deals: list[FlightDeal] = []
 
     def _setup_session(self):
@@ -339,11 +340,21 @@ class SkyscannerAPI:
                     dep_dt = datetime.fromisoformat(departure_str)
                     min_hour = 7 if self.is_easter_period(departure) else self.START_HOUR
 
-                    if dep_dt.hour >= min_hour:
-                        if price_per_person < best_price:
-                            best_price = price_per_person
-                            best_time = dep_dt.strftime("%H:%M")
-                            valid_option_found = True
+                    if dep_dt.hour < min_hour:
+                        continue
+
+                    # Check return arrival time
+                    if len(legs) >= 2 and self.MAX_RETURN_HOUR < 23:
+                        arrival_str = legs[1].get("arrival", "")
+                        if arrival_str:
+                            arr_dt = datetime.fromisoformat(arrival_str)
+                            if arr_dt.hour > self.MAX_RETURN_HOUR:
+                                continue
+
+                    if price_per_person < best_price:
+                        best_price = price_per_person
+                        best_time = dep_dt.strftime("%H:%M")
+                        valid_option_found = True
                 except ValueError:
                     continue
 
