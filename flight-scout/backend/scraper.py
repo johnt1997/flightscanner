@@ -445,7 +445,7 @@ class SkyscannerAPI:
                 keep_deal = False
 
                 if details is None:
-                    keep_deal = True
+                    keep_deal = False
                 elif details.get("status") == "ok":
                     final_price = details['price']
                     final_time = details['time']
