@@ -63,8 +63,17 @@ export default function FlightScout() {
 
   // Form State
   const [selectedAirports, setSelectedAirports] = useState(['vie']);
-  const [startDate, setStartDate] = useState('2026-03-20');
-  const [endDate, setEndDate] = useState('2026-04-30');
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    const daysToFri = (5 - now.getDay() + 7) % 7 || 7;
+    const nextFri = new Date(now.getTime() + daysToFri * 86400000);
+    return nextFri.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return last.toISOString().split('T')[0];
+  });
   const [startWeekday, setStartWeekday] = useState(4);
   const [durations, setDurations] = useState([2]);
   const [adults, setAdults] = useState(1);
@@ -198,6 +207,28 @@ export default function FlightScout() {
   // Persist theme
   useEffect(() => { localStorage.setItem('flight_scout_theme', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('flight_scout_favorites', JSON.stringify(favorites)); }, [favorites]);
+
+  // Smart sync: startDate -> endDate (same month end), startWeekday, duration
+  useEffect(() => {
+    if (!startDate) return;
+    const d = new Date(startDate + 'T00:00:00');
+    if (isNaN(d.getTime())) return;
+
+    // Sync weekday: JS getDay() = 0=Sun, convert to 0=Mon
+    const jsDay = d.getDay();
+    const weekday = jsDay === 0 ? 6 : jsDay - 1; // 0=Mo, 1=Di, ..., 6=So
+    setStartWeekday(weekday);
+
+    // Sync endDate to end of same month
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    const endStr = lastDay.toISOString().split('T')[0];
+    setEndDate(endStr);
+
+    // Sync duration: distance to Sunday (typical weekend return)
+    // Mo=0->So=6 nights, Di=1->5, Mi=2->4, Do=3->3, Fr=4->2, Sa=5->1, So=6->7(skip)
+    const nightsToSunday = weekday <= 5 ? (6 - weekday) : 1;
+    setDurations([nightsToSunday]);
+  }, [startDate]);
   useEffect(() => {
     if (user) localStorage.setItem('flight_scout_user', JSON.stringify(user));
     else localStorage.removeItem('flight_scout_user');
@@ -727,12 +758,16 @@ export default function FlightScout() {
             {/* Weekday Selector */}
             <div style={{ marginBottom: '2rem' }}>
               <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>
-                Starttag: {WEEKDAYS[startWeekday]}
+                Starttag: {WEEKDAYS[startWeekday]} {durations.length === 1 && <span style={{ fontWeight: 400, color: t.textDim }}>→ {WEEKDAYS[(startWeekday + durations[0]) % 7]}</span>}
               </label>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 {WEEKDAYS.map((day, i) => (
                   <div key={day} className={`weekday-btn ${i === startWeekday ? 'start' : ''}`}
-                    onClick={() => setStartWeekday(i)}>{day}</div>
+                    onClick={() => {
+                      setStartWeekday(i);
+                      const nightsToSunday = i <= 5 ? (6 - i) : 1;
+                      setDurations([nightsToSunday]);
+                    }}>{day}</div>
                 ))}
               </div>
             </div>
