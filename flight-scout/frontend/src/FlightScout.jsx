@@ -17,7 +17,8 @@ const COUNTRIES = [
   'Rumänien', 'Vereinigtes Königreich',
   'Irland', 'Niederlande', 'Belgien', 'Dänemark', 'Schweden',
   'Norwegen', 'Marokko', 'Frankreich',
-  'Malta', 'Zypern', 'Spanien', 'Portugal'
+  'Malta', 'Zypern', 'Spanien', 'Portugal',
+  'Italien', 'Bulgarien', 'Schweiz', 'Polen', 'Lettland',
 ];
 
 export default function FlightScout() {
@@ -77,6 +78,10 @@ export default function FlightScout() {
   // Share toast
   const [showShareToast, setShowShareToast] = useState(false);
 
+  // New deal toast queue
+  const [dealToasts, setDealToasts] = useState([]);
+  const [seenCities, setSeenCities] = useState(new Set());
+
   // Theme colors
   const t = theme === 'dark' ? {
     bg: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
@@ -108,6 +113,46 @@ export default function FlightScout() {
     modalBg: '#ffffff',
     pickerBg: 'rgba(0, 0, 0, 0.04)',
     chipBg: 'rgba(0, 0, 0, 0.04)',
+  };
+
+  const COUNTRY_FACTS = {
+    'Italien': ['Italien hat 58 UNESCO-Welterbestätten - mehr als jedes andere Land!', 'In Italien gibt es über 350 Pasta-Sorten!', 'Die Universität Bologna ist die älteste der Welt (1088).'],
+    'Spanien': ['Spanien hat die drittmeisten UNESCO-Welterbestätten weltweit!', 'La Tomatina: jährlich werden 150.000 Tomaten geworfen!', 'Spanien produziert 44% des weltweiten Olivenöls.'],
+    'Griechenland': ['Griechenland hat über 6.000 Inseln!', 'Die griechische Sprache wird seit 3.400 Jahren geschrieben.', 'Griechenland hat mehr archäologische Museen als jedes andere Land.'],
+    'Türkei': ['Istanbul liegt auf zwei Kontinenten gleichzeitig!', 'Der Weihnachtsmann (Nikolaus) stammt aus der heutigen Türkei.', 'Die Türkei hat über 80.000 Moscheen.'],
+    'Frankreich': ['Frankreich ist das meistbesuchte Land der Welt!', 'In Frankreich gibt es über 400 Käsesorten.', 'Der Eiffelturm wächst im Sommer um 15cm.'],
+    'Kroatien': ['Kings Landing aus Game of Thrones wurde in Dubrovnik gedreht!', 'Kroatien hat über 1.200 Inseln.', 'Die Krawatte wurde in Kroatien erfunden!'],
+    'Portugal': ['Portugal ist das älteste Land Europas mit gleichen Grenzen seit 1139!', 'Lissabon ist älter als Rom.', 'Portugal hat 850km Küste.'],
+    'Vereinigtes Königreich': ['London hat über 170 Museen!', 'Big Ben ist eigentlich der Name der Glocke, nicht des Turms.', 'Die Briten trinken täglich 165 Mio. Tassen Tee.'],
+    'Irland': ['Irland hat keine Schlangen!', 'Die irische Harfe ist das einzige Musikinstrument als Nationalsymbol.', 'Halloween stammt aus Irland.'],
+    'Niederlande': ['Die Niederlande haben mehr Fahrräder als Einwohner!', 'Amsterdam steht auf 11 Mio. Holzpfählen.', 'Orangen heißen auf Niederländisch "sinaasappel" (Chinas Apfel).'],
+    'Albanien': ['Albanien hat mehr Bunker als McDonalds - über 170.000!', 'Die albanische Flagge ist die einzige mit einem doppelköpfigen Adler.', 'Albanien hat einige der letzten wilden Strände Europas.'],
+    'Montenegro': ['Montenegros Bucht von Kotor ist der südlichste Fjord Europas!', 'Das Land hat nur 620.000 Einwohner.', 'Der Name bedeutet "Schwarzer Berg".'],
+    'Serbien': ['Belgrad ist eine der ältesten Städte Europas!', 'Serbien ist der größte Himbeer-Exporteur der Welt.', 'Nikola Tesla wurde in Serbien geboren.'],
+    'Bulgarien': ['Bulgarien ist das älteste Land Europas, das seinen Namen nie geändert hat!', 'Joghurt heißt dort "kiselo mlyako".', 'In Bulgarien nickt man für Nein und schüttelt für Ja.'],
+    'Rumänien': ['Rumäniens Parlamentspalast ist das zweitgrößte Gebäude der Welt!', 'Transsilvanien ist die Heimat von Dracula.', 'Rumänien hat das schnellste Internet Europas.'],
+    'Marokko': ['Marokkos Uni in Fès ist die älteste noch bestehende der Welt!', 'Marokko hat sowohl Atlantik- als auch Mittelmeerküste.', 'Tagine ist gleichzeitig das Gericht und der Kochtopf.'],
+    'Ungarn': ['Budapest hat das größte Thermalbad Europas!', 'Der Rubik-Würfel wurde in Ungarn erfunden.', 'Ungarn hat über 1.000 Thermalquellen.'],
+    'Tschechien': ['Prag hat mehr als 100 Kirchtürme!', 'Tschechien hat den höchsten Bierkonsum pro Kopf weltweit.', 'Das Wort "Roboter" kommt aus dem Tschechischen.'],
+    'Polen': ['Polen hat 17 UNESCO-Welterbestätten!', 'Krakaus Marktplatz ist der größte mittelalterliche Platz Europas.', 'Marie Curie wurde in Warschau geboren.'],
+    'Dänemark': ['Dänemark hat über 7.000 km Küste!', 'LEGO wurde in Dänemark erfunden.', 'Kopenhagen wurde 5x zur lebenswertesten Stadt gewählt.'],
+    'Schweden': ['In Schweden gibt es ein Eishotel, das jedes Jahr neu gebaut wird!', 'Schweden hat über 200.000 Inseln.', 'IKEA, Spotify und Minecraft kommen aus Schweden.'],
+    'Norwegen': ['Norwegens Küste ist 25.000 km lang - mit allen Fjorden!', 'Im Sommer geht die Sonne im Norden nie unter.', 'Norwegen hat den längsten Straßentunnel der Welt (24,5km).'],
+    'Island': ['Island hat keine Armee!', 'Das Althing ist das älteste Parlament der Welt (930 n.Chr.).', 'In Island gibt es mehr Schafe als Menschen.'],
+    'Ägypten': ['Die Pyramiden von Gizeh sind das letzte erhaltene Weltwunder der Antike!', 'Der Nil ist 6.650 km lang.', 'Kleopatra lebte zeitlich näher am iPhone als am Pyramidenbau.'],
+    'Malta': ['Malta hat die ältesten freistehenden Gebäude der Welt!', 'Malta ist kleiner als München.', 'Maltesisch ist die einzige semitische Sprache mit lateinischer Schrift.'],
+    'Zypern': ['Zypern hat 340 Sonnentage im Jahr!', 'Aphrodite soll an Zyperns Küste geboren worden sein.', 'Halloumi-Käse kommt aus Zypern.'],
+    'Bosnien und Herzegowina': ['Sarajevo war die erste Stadt Europas mit einer Straßenbahn!', 'Bosnien hat die letzte Urwald-Region Europas.', 'Der Balkan-Kaffee in Bosnien ist UNESCO Kulturerbe.'],
+    'Nordmazedonien': ['Ohrid-See ist einer der ältesten Seen der Welt!', 'Mutter Teresa wurde in Skopje geboren.', 'Das Land hat über 50 natürliche Seen.'],
+    'Slowenien': ['Über 60% Sloweniens ist mit Wald bedeckt!', 'Ljubljana wurde 2016 zur grünsten Hauptstadt Europas gewählt.', 'Slowenien hat nur 46km Küste.'],
+    'Belgien': ['Belgien produziert 220.000 Tonnen Schokolade pro Jahr!', 'Pommes Frites wurden in Belgien erfunden, nicht in Frankreich.', 'Brüssel hat die meisten Diplomaten pro km² weltweit.'],
+    'Finnland': ['Finnland hat über 180.000 Seen!', 'Finnen haben mehr Saunen als Autos.', 'Finnland ist das glücklichste Land der Welt (UN-Ranking).'],
+  };
+
+  const getCountryFact = (country) => {
+    const facts = COUNTRY_FACTS[country];
+    if (!facts) return null;
+    return facts[Math.floor(Math.random() * facts.length)];
   };
 
   // Persist theme
@@ -214,7 +259,7 @@ export default function FlightScout() {
       `🏙  ${deal.city}, ${deal.country}`,
       `💰 ${deal.price.toFixed(0)}€ pro Person`,
       `📅 ${formatDate(deal.departure_date)} – ${formatDate(deal.return_date)}`,
-      deal.flight_time && deal.flight_time !== '??:??' ? `🕐 Abflug ${deal.flight_time}` : '',
+      deal.flight_time && deal.flight_time !== '??:??' ? `🕐 Hin ${deal.flight_time}${deal.return_flight_time && deal.return_flight_time !== '??:??' ? ` / Rück ${deal.return_flight_time}` : ''}` : '',
       `🛫 Ab ${deal.origin}`,
       deal.is_direct ? `⚡ Direktflug` : '',
       `━━━━━━━━━━━━━━━━`,
@@ -258,20 +303,59 @@ export default function FlightScout() {
     return arr;
   }, [results, favorites]);
 
-  // Poll for job status
+  // Poll for job status with live streaming
   useEffect(() => {
-    if (!jobId || jobStatus?.status === 'completed' || jobStatus?.status === 'failed') return;
+    if (!jobId || jobStatus?.status === 'completed' || jobStatus?.status === 'failed' || jobStatus?.status === 'cancelled') return;
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`${API_URL}/status/${jobId}`);
         const data = await res.json();
         setJobStatus(data);
-        if (data.status === 'completed') { setResults(data.results || []); setIsSearching(false); }
-        else if (data.status === 'failed') { setIsSearching(false); }
+
+        // Live-update results during search
+        if (data.status === 'running' && data.partial_results?.length) {
+          setResults(data.partial_results);
+        }
+
+        // New deal toast
+        if (data.new_deals?.length) {
+          const newCities = new Set();
+          data.new_deals.forEach(d => {
+            if (!seenCities.has(d.city)) {
+              newCities.add(d.city);
+            }
+          });
+
+          if (newCities.size > 0) {
+            setSeenCities(prev => {
+              const updated = new Set(prev);
+              newCities.forEach(c => updated.add(c));
+              return updated;
+            });
+
+            // Show toast for each new city
+            newCities.forEach(city => {
+              const deal = data.new_deals.find(d => d.city === city);
+              if (deal) {
+                const fact = getCountryFact(deal.country);
+                const toastId = Date.now() + Math.random();
+                setDealToasts(prev => [...prev, { id: toastId, city: deal.city, country: deal.country, price: deal.price, fact }]);
+                setTimeout(() => setDealToasts(prev => prev.filter(t => t.id !== toastId)), 5000);
+              }
+            });
+          }
+        }
+
+        if (data.status === 'completed' || data.status === 'cancelled') {
+          setResults(data.results || []);
+          setIsSearching(false);
+        } else if (data.status === 'failed') {
+          setIsSearching(false);
+        }
       } catch (e) { console.error('Status poll error:', e); }
-    }, 2000);
+    }, 1500);
     return () => clearInterval(interval);
-  }, [jobId, jobStatus?.status]);
+  }, [jobId, jobStatus?.status, seenCities]);
 
   const toggleAirport = (code) => {
     setSelectedAirports(prev => prev.includes(code) ? prev.filter(a => a !== code) : [...prev, code]);
@@ -291,12 +375,21 @@ export default function FlightScout() {
     });
   };
 
+  const stopSearch = async () => {
+    if (!jobId) return;
+    try {
+      await fetch(`${API_URL}/stop/${jobId}`, { method: 'POST' });
+    } catch (e) { console.error('Stop error:', e); }
+  };
+
   const startSearch = async () => {
     if (selectedAirports.length === 0) { alert('Bitte mindestens einen Flughafen auswählen!'); return; }
     setIsSearching(true);
     setResults([]);
     setJobStatus(null);
     setExpandedCity(null);
+    setSeenCities(new Set());
+    setDealToasts([]);
     try {
       const res = await fetch(`${API_URL}/search`, {
         method: 'POST',
@@ -384,6 +477,12 @@ export default function FlightScout() {
         .deal-row:hover { background: ${t.cardHover}; }
         .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #22c55e; color: white; padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 600; z-index: 9999; animation: fadeInUp 0.3s ease; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        @keyframes dealSlideIn { from { opacity: 0; transform: translateX(120%); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes dealSlideOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(120%); } }
+        .deal-toast { animation: dealSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .deal-toast.exiting { animation: dealSlideOut 0.4s ease-in forwards; }
+        @keyframes progressPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .progress-fill { animation: progressPulse 2s ease-in-out infinite; }
         .date-pill { padding: 0.35rem 0.7rem; border-radius: 8px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
         .date-pill:hover { transform: scale(1.05); }
       `}</style>
@@ -543,11 +642,27 @@ export default function FlightScout() {
           {/* Progress */}
           {isSearching && jobStatus && (
             <div className="glass" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <span>{jobStatus.message}</span>
-                <span style={{ fontFamily: 'Space Mono, monospace' }}>{jobStatus.progress}%</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span>{jobStatus.message}</span>
+                    <span style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700 }}>{jobStatus.progress}%</span>
+                  </div>
+                  <div className="progress-bar"><div className="progress-fill" style={{ width: `${jobStatus.progress}%` }} /></div>
+                  {(jobStatus.destinations_found > 0 || jobStatus.deals_found > 0) && (
+                    <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.75rem', fontSize: '0.9rem' }}>
+                      <span style={{ color: '#6366f1', fontWeight: 600 }}>{jobStatus.destinations_found} Ziele</span>
+                      <span style={{ color: '#22c55e', fontWeight: 600 }}>{jobStatus.deals_found} Deals</span>
+                    </div>
+                  )}
+                </div>
+                <button onClick={stopSearch}
+                  style={{ marginLeft: '1.5rem', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '12px', padding: '0.75rem 1.25rem', color: '#ef4444', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', transition: 'all 0.2s ease', whiteSpace: 'nowrap' }}
+                  onMouseOver={e => e.target.style.background = 'rgba(239, 68, 68, 0.25)'}
+                  onMouseOut={e => e.target.style.background = 'rgba(239, 68, 68, 0.15)'}>
+                  Stopp
+                </button>
               </div>
-              <div className="progress-bar"><div className="progress-fill" style={{ width: `${jobStatus.progress}%` }} /></div>
             </div>
           )}
 
@@ -557,10 +672,13 @@ export default function FlightScout() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h2 style={{ margin: 0, fontSize: '1.5rem' }}>
                   {groupedResults.length} Ziele, {results.length} Deals
+                  {isSearching && <span style={{ fontSize: '0.9rem', color: t.textMuted, fontWeight: 400, marginLeft: '0.75rem' }}>live...</span>}
                 </h2>
-                <button onClick={downloadPdf} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.75rem 1.25rem', borderRadius: '12px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>
-                  PDF Download
-                </button>
+                {!isSearching && (
+                  <button onClick={downloadPdf} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.75rem 1.25rem', borderRadius: '12px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>
+                    PDF Download
+                  </button>
+                )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -616,7 +734,10 @@ export default function FlightScout() {
                                   {formatDateFull(deal.departure_date)} – {formatDateFull(deal.return_date)}
                                 </span>
                                 {deal.flight_time && deal.flight_time !== '??:??' && (
-                                  <span style={{ color: t.textDim, fontSize: '0.85rem' }}>{deal.flight_time}</span>
+                                  <span style={{ color: t.textDim, fontSize: '0.85rem' }}>
+                                    {deal.flight_time}
+                                    {deal.return_flight_time && deal.return_flight_time !== '??:??' && ` / ${deal.return_flight_time}`}
+                                  </span>
                                 )}
                                 <span style={{ color: t.textDim, fontSize: '0.85rem' }}>ab {deal.origin}</span>
                                 {deal.is_direct && <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>Direkt</span>}
@@ -752,6 +873,40 @@ export default function FlightScout() {
 
       {/* Share Toast */}
       {showShareToast && <div className="toast">In Zwischenablage kopiert!</div>}
+
+      {/* New Deal Toasts */}
+      <div style={{ position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '380px' }}>
+        {dealToasts.slice(-3).map((toast) => (
+          <div key={toast.id} className="deal-toast"
+            style={{
+              background: theme === 'dark' ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              border: `1px solid ${getPriceColor(toast.price)}44`,
+              borderLeft: `4px solid ${getPriceColor(toast.price)}`,
+              borderRadius: '16px',
+              padding: '1rem 1.25rem',
+              boxShadow: `0 8px 32px rgba(0,0,0,0.3), 0 0 20px ${getPriceColor(toast.price)}22`,
+            }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: toast.fact ? '0.5rem' : 0 }}>
+              <span style={{ fontSize: '1.5rem' }}>&#9992;</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: t.text }}>
+                  {toast.city}
+                  <span style={{ opacity: 0.5, fontWeight: 400, marginLeft: '0.5rem' }}>{toast.country}</span>
+                </div>
+                <div style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, color: getPriceColor(toast.price), fontSize: '1.1rem' }}>
+                  ab {toast.price.toFixed(0)}€
+                </div>
+              </div>
+            </div>
+            {toast.fact && (
+              <div style={{ fontSize: '0.8rem', color: t.textMuted, lineHeight: 1.4, borderTop: `1px solid ${t.glassBorder}`, paddingTop: '0.5rem', fontStyle: 'italic' }}>
+                {toast.fact}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

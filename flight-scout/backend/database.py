@@ -93,7 +93,13 @@ def verify_token(token: str) -> int | None:
         expected = hmac.new(TOKEN_SECRET.encode(), f"{user_id}:{timestamp}".encode(), hashlib.sha256).hexdigest()[:16]
         if not hmac.compare_digest(signature, expected):
             return None
-        return int(user_id)
+        uid = int(user_id)
+        conn = get_db()
+        row = conn.execute("SELECT id FROM users WHERE id = ?", (uid,)).fetchone()
+        conn.close()
+        if not row:
+            return None
+        return uid
     except Exception:
         return None
 

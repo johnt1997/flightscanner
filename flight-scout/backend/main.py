@@ -13,7 +13,8 @@ import asyncio
 import uuid
 import calendar
 
-from scraper import SkyscannerAPI, create_pdf_report, FlightDeal
+from scraper import SkyscannerAPI, create_pdf_report, FlightDeal, PDF_DIR
+import os
 from database import (
     create_user, authenticate_user, create_token, verify_token,
     save_deal, get_user_deals, delete_deal,
@@ -61,10 +62,14 @@ class SearchRequest(BaseModel):
 
 class JobStatus(BaseModel):
     job_id: str
-    status: str  # "pending", "running", "completed", "failed"
+    status: str  # "pending", "running", "completed", "failed", "cancelled"
     progress: int  # 0-100
     message: str
     results: Optional[list] = None
+    partial_results: Optional[list] = None
+    new_deals: Optional[list] = None
+    destinations_found: int = 0
+    deals_found: int = 0
     pdf_path: Optional[str] = None
 
 
@@ -215,6 +220,11 @@ def start_search(request: SearchRequest, background_tasks: BackgroundTasks):
         "progress": 0,
         "message": "Job erstellt...",
         "results": None,
+        "partial_results": [],
+        "new_deals": [],
+        "destinations_found": 0,
+        "deals_found": 0,
+        "cancelled": False,
         "pdf_path": None,
     }
 
@@ -234,14 +244,29 @@ def get_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job nicht gefunden")
 
     job = jobs[job_id]
+    new_deals = list(job.get("new_deals", []))
+    job["new_deals"] = []
+
     return JobStatus(
         job_id=job_id,
         status=job["status"],
         progress=job["progress"],
         message=job["message"],
         results=job.get("results"),
+        partial_results=job.get("partial_results") if job["status"] == "running" else None,
+        new_deals=new_deals if new_deals else None,
+        destinations_found=job.get("destinations_found", 0),
+        deals_found=job.get("deals_found", 0),
         pdf_path=job.get("pdf_path"),
     )
+
+
+@app.post("/stop/{job_id}")
+def stop_search(job_id: str):
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail="Job nicht gefunden")
+    jobs[job_id]["cancelled"] = True
+    return {"message": "Suche wird gestoppt..."}
 
 
 @app.get("/download/{job_id}")
@@ -281,32 +306,78 @@ def calendar_search(req: CalendarRequest, background_tasks: BackgroundTasks):
 
 # --- Background Tasks ---
 
+def _deal_to_dict(d: FlightDeal) -> dict:
+    return {
+        "city": d.city,
+        "country": d.country,
+        "price": d.price,
+        "departure_date": d.departure_date,
+        "return_date": d.return_date,
+        "flight_time": d.flight_time,
+        "return_flight_time": d.return_flight_time,
+        "is_direct": d.is_direct,
+        "url": d.url,
+        "origin": getattr(d, 'origin', 'Unknown'),
+        "latitude": d.latitude,
+        "longitude": d.longitude,
+    }
+
+
 def run_search(job_id: str, request: SearchRequest):
     """Background task für die Flugsuche"""
     try:
-        jobs[job_id]["status"] = "running"
-        jobs[job_id]["message"] = "Initialisiere Suche..."
+        job = jobs[job_id]
+        job["status"] = "running"
+        job["message"] = "Initialisiere Suche..."
 
         all_deals: list[FlightDeal] = []
-        total_airports = len(request.airports)
+        seen_cities: set[str] = set()
 
         start_date = datetime.strptime(request.start_date, "%Y-%m-%d")
         end_date = datetime.strptime(request.end_date, "%Y-%m-%d")
 
         durations = request.durations or [2]
-        total_steps = len(request.airports) * len(durations)
-        step = 0
 
-        for airport_code in request.airports:
-            if airport_code not in AIRPORTS:
-                continue
+        # Berechne totale Trips für granulares Progress
+        valid_airports = [a for a in request.airports if a in AIRPORTS]
+        total_trips = 0
+        for airport_code in valid_airports:
+            airport = AIRPORTS[airport_code]
+            temp_scraper = SkyscannerAPI(origin_entity_id=airport["id"], origin_sky_code=airport["code"])
+            for dur in durations:
+                total_trips += len(temp_scraper.generate_trips(start_date, end_date, request.start_weekday, dur))
+        completed_trips = 0
 
+        def on_deals(trip_deals: list[FlightDeal], airport_name: str):
+            nonlocal seen_cities
+            for deal in trip_deals:
+                deal.origin = airport_name
+            all_deals.extend(trip_deals)
+            new_dicts = [_deal_to_dict(d) for d in trip_deals]
+            job["partial_results"] = [_deal_to_dict(d) for d in sorted(all_deals, key=lambda x: x.price)]
+            job["new_deals"].extend(new_dicts)
+            job["deals_found"] = len(all_deals)
+            for d in trip_deals:
+                seen_cities.add(d.city)
+            job["destinations_found"] = len(seen_cities)
+
+        def on_progress(trip_idx: int, trip_total: int):
+            nonlocal completed_trips
+            completed_trips += 1
+            job["progress"] = min(int((completed_trips / max(total_trips, 1)) * 90), 90)
+
+        def cancel_check():
+            return job.get("cancelled", False)
+
+        for airport_code in valid_airports:
+            if cancel_check():
+                break
             airport = AIRPORTS[airport_code]
 
             for dur in durations:
-                jobs[job_id]["message"] = f"Suche ab {airport['name']} ({dur} Nächte)..."
-                jobs[job_id]["progress"] = int((step / total_steps) * 80)
-                step += 1
+                if cancel_check():
+                    break
+                job["message"] = f"Suche ab {airport['name']} ({dur} {'Nacht' if dur == 1 else 'Nächte'})..."
 
                 scraper = SkyscannerAPI(
                     origin_entity_id=airport["id"],
@@ -318,7 +389,6 @@ def run_search(job_id: str, request: SearchRequest):
 
                 if request.blacklist_countries:
                     scraper.BLACKLIST_COUNTRIES = request.blacklist_countries
-
                 scraper.MAX_PRICE = request.max_price
 
                 scraper.run(
@@ -326,44 +396,29 @@ def run_search(job_id: str, request: SearchRequest):
                     end_date=end_date,
                     start_weekday=request.start_weekday,
                     duration=dur,
+                    cancel_check=cancel_check,
+                    on_deals=lambda deals, an=airport["name"]: on_deals(deals, an),
+                    on_progress=on_progress,
                 )
 
-                for deal in scraper.deals:
-                    deal.origin = airport["name"]
+        was_cancelled = job.get("cancelled", False)
 
-                all_deals.extend(scraper.deals)
-
-        jobs[job_id]["progress"] = 90
-        jobs[job_id]["message"] = "Erstelle Report..."
+        job["progress"] = 95
+        job["message"] = "Erstelle Report..."
 
         # PDF generieren
-        pdf_filename = f"flight_report_{job_id}.pdf"
-        origin_names = ", ".join([AIRPORTS[a]["name"] for a in request.airports if a in AIRPORTS])
+        pdf_filename = os.path.join(PDF_DIR, f"flight_report_{job_id}.pdf")
+        origin_names = ", ".join([AIRPORTS[a]["name"] for a in valid_airports])
         create_pdf_report(all_deals, origin_names, filename=pdf_filename)
 
-        # Results formatieren
-        results = [
-            {
-                "city": d.city,
-                "country": d.country,
-                "price": d.price,
-                "departure_date": d.departure_date,
-                "return_date": d.return_date,
-                "flight_time": d.flight_time,
-                "is_direct": d.is_direct,
-                "url": d.url,
-                "origin": getattr(d, 'origin', 'Unknown'),
-                "latitude": d.latitude,
-                "longitude": d.longitude,
-            }
-            for d in sorted(all_deals, key=lambda x: x.price)
-        ]
+        # Final results
+        results = [_deal_to_dict(d) for d in sorted(all_deals, key=lambda x: x.price)]
 
-        jobs[job_id]["status"] = "completed"
-        jobs[job_id]["progress"] = 100
-        jobs[job_id]["message"] = f"Fertig! {len(results)} Deals gefunden."
-        jobs[job_id]["results"] = results
-        jobs[job_id]["pdf_path"] = pdf_filename
+        job["status"] = "cancelled" if was_cancelled else "completed"
+        job["progress"] = 100
+        job["message"] = f"{'Gestoppt' if was_cancelled else 'Fertig'}! {len(results)} Deals gefunden."
+        job["results"] = results
+        job["pdf_path"] = pdf_filename
 
         # Check Telegram alerts
         try:

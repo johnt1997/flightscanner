@@ -7,11 +7,25 @@ Skyscanner Weekend Flight Scraper - API Version & PDF Report
 import requests
 import json
 import uuid
+import random
+import os
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict, field
 from typing import Optional
 import time
 from fpdf import FPDF
+
+PDF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pdfs")
+os.makedirs(PDF_DIR, exist_ok=True)
+
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+]
 
 CITY_COORDS = {
     "London": (51.5074, -0.1278),
@@ -66,6 +80,7 @@ class FlightDeal:
     is_direct: bool = False
     url: str = ""
     flight_time: str = ""
+    return_flight_time: str = ""
     origin: str = ""  # Neues Feld für multi-airport support
     latitude: float = 0.0   # NEU
     longitude: float = 0.0  # NEU
@@ -140,14 +155,15 @@ def create_pdf_report(deals: list[FlightDeal], origin: str, filename="Flight_Rep
     pdf.set_text_color(255)
     pdf.set_font("Helvetica", "B", 9)
 
-    col_w = [25, 25, 20, 45, 40, 35]
+    col_w = [25, 20, 20, 20, 40, 35, 30]
 
     pdf.cell(col_w[0], 10, "Datum", 1, 0, 'C', True)
-    pdf.cell(col_w[1], 10, "Abflug", 1, 0, 'C', True)
-    pdf.cell(col_w[2], 10, "Zeit", 1, 0, 'C', True)
-    pdf.cell(col_w[3], 10, "Stadt", 1, 0, 'L', True)
-    pdf.cell(col_w[4], 10, "Land", 1, 0, 'L', True)
-    pdf.cell(col_w[5], 10, "Preis", 1, 1, 'C', True)
+    pdf.cell(col_w[1], 10, "Ab", 1, 0, 'C', True)
+    pdf.cell(col_w[2], 10, "Hin", 1, 0, 'C', True)
+    pdf.cell(col_w[3], 10, "Rueck", 1, 0, 'C', True)
+    pdf.cell(col_w[4], 10, "Stadt", 1, 0, 'L', True)
+    pdf.cell(col_w[5], 10, "Land", 1, 0, 'L', True)
+    pdf.cell(col_w[6], 10, "Preis", 1, 1, 'C', True)
 
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(60)
@@ -174,17 +190,20 @@ def create_pdf_report(deals: list[FlightDeal], origin: str, filename="Flight_Rep
         country_clean = deal.country.encode('latin-1', 'replace').decode('latin-1')[:18]
         origin_short = getattr(deal, 'origin', '')[:3].upper() or "???"
 
+        return_time = getattr(deal, 'return_flight_time', '??:??') or '??:??'
+
         pdf.cell(col_w[0], 8, date_nice, "LR", 0, 'C', fill)
         pdf.cell(col_w[1], 8, origin_short, "LR", 0, 'C', fill)
         pdf.cell(col_w[2], 8, deal.flight_time or "??:??", "LR", 0, 'C', fill)
-        pdf.cell(col_w[3], 8, city_clean, "LR", 0, 'L', fill)
-        pdf.cell(col_w[4], 8, country_clean, "LR", 0, 'L', fill)
+        pdf.cell(col_w[3], 8, return_time, "LR", 0, 'C', fill)
+        pdf.cell(col_w[4], 8, city_clean, "LR", 0, 'L', fill)
+        pdf.cell(col_w[5], 8, country_clean, "LR", 0, 'L', fill)
 
         if is_cheap:
             pdf.set_text_color(*COLOR_GREEN)
         else:
             pdf.set_text_color(60)
-        pdf.cell(col_w[5], 8, f"{deal.price:.0f} EUR", "LR", 1, 'C', fill, link=deal.url)
+        pdf.cell(col_w[6], 8, f"{deal.price:.0f} EUR", "LR", 1, 'C', fill, link=deal.url)
 
         pdf.set_text_color(60)
         fill = not fill
@@ -214,11 +233,21 @@ class SkyscannerAPI:
         self.deals: list[FlightDeal] = []
 
     def _setup_session(self):
+        ua = random.choice(USER_AGENTS)
         self.session.headers.update({
             "accept": "application/json",
-            "accept-language": "de-DE,de;q=0.9",
+            "accept-encoding": "gzip, deflate, br",
+            "accept-language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
             "content-type": "application/json",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "origin": "https://www.skyscanner.at",
+            "referer": "https://www.skyscanner.at/",
+            "sec-ch-ua": '"Chromium";v="131", "Not_A Brand";v="24"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+            "user-agent": ua,
             "x-radar-combined-explore-generic-results": "1",
             "x-radar-combined-explore-unfocused-locations-use-real-data": "1",
             "x-skyscanner-channelid": "banana",
@@ -319,6 +348,7 @@ class SkyscannerAPI:
 
             best_price = 9999.0
             best_time = ""
+            best_return_time = ""
             valid_option_found = False
 
             for itinerary in itineraries:
@@ -354,12 +384,17 @@ class SkyscannerAPI:
                     if price_per_person < best_price:
                         best_price = price_per_person
                         best_time = dep_dt.strftime("%H:%M")
+                        if len(legs) >= 2:
+                            ret_dep_str = legs[1].get("departure", "")
+                            if ret_dep_str:
+                                ret_dep_dt = datetime.fromisoformat(ret_dep_str)
+                                best_return_time = ret_dep_dt.strftime("%H:%M")
                         valid_option_found = True
                 except ValueError:
                     continue
 
             if valid_option_found:
-                return {"price": best_price, "status": "ok", "time": best_time}
+                return {"price": best_price, "status": "ok", "time": best_time, "return_time": best_return_time}
             return {"status": "too_early_or_expensive"}
         except:
             return None
@@ -453,6 +488,7 @@ class SkyscannerAPI:
                 details = self.get_specific_flight_details(city_entity_id, friday, sunday)
                 final_price = price_per_person
                 final_time = "??:??"
+                final_return_time = "??:??"
                 keep_deal = False
 
                 if details is None:
@@ -460,6 +496,7 @@ class SkyscannerAPI:
                 elif details.get("status") == "ok":
                     final_price = details['price']
                     final_time = details['time']
+                    final_return_time = details.get('return_time', '??:??')
                     keep_deal = True
 
                 if keep_deal:
@@ -474,26 +511,34 @@ class SkyscannerAPI:
                         is_direct=cheapest.get("direct", False),
                         url=self.build_flight_url(location.get("skyCode", ""), friday, sunday),
                         flight_time=final_time,
+                        return_flight_time=final_return_time,
                         # Neu:
 latitude=CITY_COORDS.get(location.get('name', ''), (0, 0))[0],
 longitude=CITY_COORDS.get(location.get('name', ''), (0, 0))[1],
                     )
                     deals.append(deal)
 
-                time.sleep(0.5)
+                time.sleep(random.uniform(0.8, 2.5))
 
-            time.sleep(1)
+            time.sleep(random.uniform(1.5, 3.5))
 
         return deals
 
-    def run(self, start_date: datetime, end_date: datetime, start_weekday: int = 4, duration: int = 2):
+    def run(self, start_date: datetime, end_date: datetime, start_weekday: int = 4, duration: int = 2,
+            cancel_check=None, on_deals=None, on_progress=None):
         trips = self.generate_trips(start_date, end_date, start_weekday, duration)
 
-        for dep_date, ret_date in trips:
+        for i, (dep_date, ret_date) in enumerate(trips):
+            if cancel_check and cancel_check():
+                break
             try:
                 trip_deals = self.scrape_weekend(dep_date, ret_date)
                 self.deals.extend(trip_deals)
-                time.sleep(2)
+                if on_deals and trip_deals:
+                    on_deals(trip_deals)
+                if on_progress:
+                    on_progress(i + 1, len(trips))
+                time.sleep(random.uniform(2, 4))
             except Exception as e:
                 print(f"Error: {e}")
                 continue

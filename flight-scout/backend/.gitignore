@@ -1,4 +1,7 @@
 __pycache__/
 *.pyc
 *.db
-flight_report_*.pdf
+*.db-wal
+*.db-shm
+pdfs/
+*.pdf
