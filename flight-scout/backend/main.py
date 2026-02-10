@@ -13,7 +13,7 @@ import asyncio
 import uuid
 import calendar
 
-from scraper import SkyscannerAPI, create_pdf_report, FlightDeal, PDF_DIR
+from scraper import SkyscannerAPI, create_pdf_report, FlightDeal, PDF_DIR, CITY_DATABASE
 import os
 from database import (
     create_user, authenticate_user, create_token, verify_token,
@@ -58,6 +58,8 @@ class SearchRequest(BaseModel):
     min_departure_hour: int = 14
     max_return_hour: int = 23
     blacklist_countries: list[str] = []
+    search_mode: str = "everywhere"  # "everywhere" oder "cities"
+    selected_cities: list[str] = []  # ["London", "Rom", ...]
 
 
 class JobStatus(BaseModel):
@@ -135,6 +137,17 @@ def get_airports():
 @app.get("/weekdays")
 def get_weekdays():
     return {"weekdays": {i: name for i, name in enumerate(WEEKDAYS)}}
+
+
+@app.get("/cities")
+def get_cities():
+    cities = {}
+    for name, info in CITY_DATABASE.items():
+        country = info["country"]
+        if country not in cities:
+            cities[country] = []
+        cities[country].append(name)
+    return {"cities": cities}
 
 
 # --- Auth Endpoints ---
@@ -320,6 +333,8 @@ def _deal_to_dict(d: FlightDeal) -> dict:
         "origin": getattr(d, 'origin', 'Unknown'),
         "latitude": d.latitude,
         "longitude": d.longitude,
+        "early_departure": d.early_departure,
+        "alternatives": d.alternatives,
     }
 
 
@@ -369,6 +384,8 @@ def run_search(job_id: str, request: SearchRequest):
         def cancel_check():
             return job.get("cancelled", False)
 
+        is_city_mode = request.search_mode == "cities" and request.selected_cities
+
         for airport_code in valid_airports:
             if cancel_check():
                 break
@@ -377,7 +394,6 @@ def run_search(job_id: str, request: SearchRequest):
             for dur in durations:
                 if cancel_check():
                     break
-                job["message"] = f"Suche ab {airport['name']} ({dur} {'Nacht' if dur == 1 else 'Nächte'})..."
 
                 scraper = SkyscannerAPI(
                     origin_entity_id=airport["id"],
@@ -386,20 +402,39 @@ def run_search(job_id: str, request: SearchRequest):
                     origin_sky_code=airport["code"],
                     max_return_hour=request.max_return_hour,
                 )
-
-                if request.blacklist_countries:
-                    scraper.BLACKLIST_COUNTRIES = request.blacklist_countries
                 scraper.MAX_PRICE = request.max_price
 
-                scraper.run(
-                    start_date=start_date,
-                    end_date=end_date,
-                    start_weekday=request.start_weekday,
-                    duration=dur,
-                    cancel_check=cancel_check,
-                    on_deals=lambda deals, an=airport["name"]: on_deals(deals, an),
-                    on_progress=on_progress,
-                )
+                if is_city_mode:
+                    city_names = ", ".join(request.selected_cities[:3])
+                    if len(request.selected_cities) > 3:
+                        city_names += f" +{len(request.selected_cities) - 3}"
+                    job["message"] = f"Suche {city_names} ab {airport['name']} ({dur} {'Nacht' if dur == 1 else 'Nächte'})..."
+
+                    scraper.run_city_search(
+                        cities=request.selected_cities,
+                        start_date=start_date,
+                        end_date=end_date,
+                        start_weekday=request.start_weekday,
+                        duration=dur,
+                        cancel_check=cancel_check,
+                        on_deals=lambda deals, an=airport["name"]: on_deals(deals, an),
+                        on_progress=on_progress,
+                    )
+                else:
+                    job["message"] = f"Suche ab {airport['name']} ({dur} {'Nacht' if dur == 1 else 'Nächte'})..."
+
+                    if request.blacklist_countries:
+                        scraper.BLACKLIST_COUNTRIES = request.blacklist_countries
+
+                    scraper.run(
+                        start_date=start_date,
+                        end_date=end_date,
+                        start_weekday=request.start_weekday,
+                        duration=dur,
+                        cancel_check=cancel_check,
+                        on_deals=lambda deals, an=airport["name"]: on_deals(deals, an),
+                        on_progress=on_progress,
+                    )
 
         was_cancelled = job.get("cancelled", False)
 
