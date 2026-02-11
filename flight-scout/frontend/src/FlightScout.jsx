@@ -755,7 +755,7 @@ export default function FlightScout() {
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Personen</label>
-                <input type="number" min="1" max="9" value={adults} onChange={(e) => setAdults(parseInt(e.target.value) || 1)} className="input-field" />
+                <input type="text" inputMode="numeric" value={adults} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setAdults(v === '' ? '' : Math.min(parseInt(v), 9)); }} onBlur={() => { if (!adults || adults < 1) setAdults(1); }} className="input-field" />
               </div>
             </div>
 
@@ -803,7 +803,7 @@ export default function FlightScout() {
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Frühester Hinflug</label>
                 <div style={{ position: 'relative' }}>
-                  <input type="number" min="0" max="23" value={minDepartureHour} onChange={(e) => setMinDepartureHour(parseInt(e.target.value) || 0)} className="input-field" style={{ paddingRight: '4rem' }} />
+                  <input type="text" inputMode="numeric" value={minDepartureHour} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setMinDepartureHour(v === '' ? '' : Math.min(parseInt(v), 23)); }} onBlur={() => { if (minDepartureHour === '' || minDepartureHour < 0) setMinDepartureHour(0); }} className="input-field" style={{ paddingRight: '4rem' }} />
                   <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: t.textDim }}>:00 Uhr</span>
                 </div>
               </div>
