@@ -89,6 +89,8 @@ export default function FlightScout() {
   const [selectedCities, setSelectedCities] = useState([]);
   const [cityFilter, setCityFilter] = useState('');
   const [activeTab, setActiveTab] = useState('search');
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminSearches, setAdminSearches] = useState([]);
 
   // Job State
   const [jobId, setJobId] = useState(null);
@@ -235,6 +237,7 @@ export default function FlightScout() {
 
   useEffect(() => {
     if (user && activeTab === 'archive') { loadSavedDeals(); }
+    if (user && activeTab === 'admin' && user.username === 'john1997') { loadAdmin(); }
   }, [user, activeTab]);
 
   const authHeaders = () => ({
@@ -288,6 +291,18 @@ export default function FlightScout() {
     } catch (e) { console.error('Delete deal error:', e); }
   };
 
+
+  // --- Admin ---
+  const loadAdmin = async () => {
+    try {
+      const [usersRes, searchesRes] = await Promise.all([
+        fetch(`${API_URL}/admin/users`, { headers: authHeaders() }),
+        fetch(`${API_URL}/admin/searches?limit=50`, { headers: authHeaders() }),
+      ]);
+      if (usersRes.ok) setAdminUsers((await usersRes.json()).users || []);
+      if (searchesRes.ok) setAdminSearches((await searchesRes.json()).searches || []);
+    } catch (e) { console.error('Admin load error:', e); }
+  };
 
   // --- Favorites ---
   const toggleFavorite = (city) => {
@@ -589,8 +604,8 @@ export default function FlightScout() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          {[['search', 'Suche'], ['heatmap', 'Heatmap'], ['calendar', 'Kalender'], ['archive', 'Archiv']].map(([key, label]) => (
-            <button key={key} onClick={() => { if (key === 'archive' && !user) { setShowAuth(true); return; } setActiveTab(key); }}
+          {[['search', 'Suche'], ['heatmap', 'Heatmap'], ['calendar', 'Kalender'], ['archive', 'Archiv'], ...(user && user.username === 'john1997' ? [['admin', 'Admin']] : [])].map(([key, label]) => (
+            <button key={key} onClick={() => { if ((key === 'archive' || key === 'admin') && !user) { setShowAuth(true); return; } setActiveTab(key); }}
               className="tab-btn" style={{ background: activeTab === key ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : t.chipBg, color: activeTab === key ? 'white' : t.text }}>
               {label}
             </button>
@@ -1036,6 +1051,67 @@ export default function FlightScout() {
               )}
             </div>
 
+          </div>
+        )}
+
+        {/* === ADMIN TAB === */}
+        {activeTab === 'admin' && user && user.username === 'john1997' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="glass" style={{ padding: '2rem' }}>
+              <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem' }}>User ({adminUsers.length})</h2>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${t.border}` }}>
+                      <th style={{ textAlign: 'left', padding: '0.5rem', color: t.textMuted }}>Username</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem', color: t.textMuted }}>Registriert</th>
+                      <th style={{ textAlign: 'right', padding: '0.5rem', color: t.textMuted }}>Suchen</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem', color: t.textMuted }}>Letzte Suche</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminUsers.map(u => (
+                      <tr key={u.id} style={{ borderBottom: `1px solid ${t.border}22` }}>
+                        <td style={{ padding: '0.5rem', fontWeight: 600 }}>{u.username}</td>
+                        <td style={{ padding: '0.5rem', color: t.textMuted }}>{u.created_at ? new Date(u.created_at).toLocaleDateString('de-DE') : '-'}</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'right' }}>{u.search_count}</td>
+                        <td style={{ padding: '0.5rem', color: t.textMuted }}>{u.last_search ? new Date(u.last_search).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="glass" style={{ padding: '2rem' }}>
+              <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem' }}>Suchverlauf (letzte 50)</h2>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${t.border}` }}>
+                      <th style={{ textAlign: 'left', padding: '0.5rem', color: t.textMuted }}>User</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem', color: t.textMuted }}>Wann</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem', color: t.textMuted }}>Modus</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem', color: t.textMuted }}>Airports</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem', color: t.textMuted }}>Zeitraum</th>
+                      <th style={{ textAlign: 'right', padding: '0.5rem', color: t.textMuted }}>Max €</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminSearches.map(s => (
+                      <tr key={s.id} style={{ borderBottom: `1px solid ${t.border}22` }}>
+                        <td style={{ padding: '0.5rem', fontWeight: 600 }}>{s.username}</td>
+                        <td style={{ padding: '0.5rem', color: t.textMuted }}>{new Date(s.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                        <td style={{ padding: '0.5rem' }}>{s.search_mode}</td>
+                        <td style={{ padding: '0.5rem' }}>{s.airports}</td>
+                        <td style={{ padding: '0.5rem', color: t.textMuted }}>{s.start_date && new Date(s.start_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} – {s.end_date && new Date(s.end_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'right' }}>{s.max_price}€</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 

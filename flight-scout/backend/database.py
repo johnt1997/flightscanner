@@ -61,6 +61,19 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
+
+        CREATE TABLE IF NOT EXISTS search_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            search_mode TEXT NOT NULL,
+            airports TEXT NOT NULL,
+            start_date TEXT,
+            end_date TEXT,
+            max_price REAL,
+            results_count INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
     """)
     conn.close()
 
@@ -215,6 +228,54 @@ def delete_alert(user_id: int, alert_id: int) -> bool:
     deleted = cursor.rowcount > 0
     conn.close()
     return deleted
+
+
+# --- Search Log ---
+
+def log_search(user_id: int, search_mode: str, airports: str, start_date: str, end_date: str, max_price: float, results_count: int = 0):
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO search_log (user_id, search_mode, airports, start_date, end_date, max_price, results_count)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (user_id, search_mode, airports, start_date, end_date, max_price, results_count)
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_search_results(search_id: int, results_count: int):
+    conn = get_db()
+    conn.execute("UPDATE search_log SET results_count = ? WHERE id = ?", (results_count, search_id))
+    conn.commit()
+    conn.close()
+
+
+def get_all_users() -> list[dict]:
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT u.id, u.username, u.created_at,
+               COUNT(DISTINCT s.id) as search_count,
+               MAX(s.created_at) as last_search
+        FROM users u
+        LEFT JOIN search_log s ON u.id = s.user_id
+        GROUP BY u.id
+        ORDER BY u.created_at DESC
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_search_log(limit: int = 50) -> list[dict]:
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT s.*, u.username
+        FROM search_log s
+        JOIN users u ON s.user_id = u.id
+        ORDER BY s.created_at DESC
+        LIMIT ?
+    """, (limit,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 # Init DB on import

@@ -23,6 +23,7 @@ from database import (
     create_user, authenticate_user, create_token, verify_token,
     save_deal, get_user_deals, delete_deal,
     create_alert, get_user_alerts, delete_alert,
+    log_search, get_all_users, get_search_log,
 )
 from alerts import check_alerts
 
@@ -268,6 +269,10 @@ def start_search(request: SearchRequest, background_tasks: BackgroundTasks, req:
         user_searches.append(now)
         search_history[user_id] = user_searches
 
+    # Log search to DB
+    airports_str = ",".join(request.airports)
+    log_search(user_id, request.search_mode, airports_str, request.start_date, request.end_date, request.max_price)
+
     job_id = str(uuid.uuid4())[:8]
 
     jobs[job_id] = {
@@ -338,6 +343,28 @@ def download_pdf(job_id: str):
         media_type="application/pdf",
         filename=f"FlightScout_{job_id}.pdf"
     )
+
+
+# --- Admin Endpoints ---
+
+def _require_admin(request: Request):
+    user_id = get_user_id(request)
+    username = _get_username(user_id)
+    if username not in ADMIN_USERS:
+        raise HTTPException(status_code=403, detail="Kein Zugriff")
+    return user_id
+
+
+@app.get("/admin/users")
+def admin_users(request: Request):
+    _require_admin(request)
+    return {"users": get_all_users()}
+
+
+@app.get("/admin/searches")
+def admin_searches(request: Request, limit: int = 50):
+    _require_admin(request)
+    return {"searches": get_search_log(limit)}
 
 
 # --- Calendar Endpoint ---
