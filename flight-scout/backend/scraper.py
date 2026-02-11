@@ -824,9 +824,9 @@ class SkyscannerAPI:
                     on_deals([deal])
 
                 if not self._is_blocked:
-                    time.sleep(random.uniform(3, 6))
+                    time.sleep(random.uniform(0.5, 1.5))
 
-            time.sleep(random.uniform(4, 8))
+            time.sleep(random.uniform(0.5, 1.5))
 
         return deals
 
@@ -937,7 +937,7 @@ class SkyscannerAPI:
                 if on_status:
                     on_status(f"💸 {city_name} – kein passender Flug")
 
-            time.sleep(random.uniform(3, 6))
+            time.sleep(random.uniform(0.5, 1.5))
 
         print(f"[CITY-SEARCH] Ergebnis: {len(deals)}/{len(cities)} Deals für {departure.strftime('%d.%m.')}")
         return deals
