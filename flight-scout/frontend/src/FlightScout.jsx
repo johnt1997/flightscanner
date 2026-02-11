@@ -562,11 +562,11 @@ export default function FlightScout() {
         .dur-chip { padding: 0.5rem 0.875rem; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.875rem; border: 2px solid transparent; transition: all 0.2s ease; background: ${t.chipBg}; color: ${t.text}; }
         .dur-chip.selected { background: rgba(99, 102, 241, 0.2); border-color: #6366f1; }
         .city-group { border-radius: 20px; overflow: hidden; transition: all 0.3s ease; }
-        .city-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; cursor: pointer; transition: all 0.2s ease; }
+        .city-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; cursor: pointer; transition: all 0.2s ease; overflow: hidden; gap: 0.75rem; }
         .city-header:hover { background: ${t.cardHover}; }
         .fav-star { cursor: pointer; font-size: 1.2rem; transition: all 0.2s ease; padding: 0.25rem; }
         .fav-star:hover { transform: scale(1.3); }
-        .deal-row { display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1.5rem; border-top: 1px solid ${t.cardBorder}; transition: all 0.2s ease; }
+        .deal-row { display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1.5rem; border-top: 1px solid ${t.cardBorder}; transition: all 0.2s ease; overflow: hidden; gap: 0.5rem; }
         .deal-row:hover { background: ${t.cardHover}; }
         .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #22c55e; color: white; padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 600; z-index: 9999; animation: fadeInUp 0.3s ease; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
@@ -912,12 +912,12 @@ export default function FlightScout() {
                     <div key={group.city} className="city-group" style={{ background: t.cardBg, border: `1px solid ${group.isFavorite ? 'rgba(234, 179, 8, 0.3)' : t.cardBorder}`, borderRadius: '20px' }}>
                       {/* City Header */}
                       <div className="city-header" onClick={() => setExpandedCity(isExpanded ? null : group.city)}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0, overflow: 'hidden' }}>
                           <span className="fav-star" onClick={(e) => { e.stopPropagation(); toggleFavorite(group.city); }}>
                             {group.isFavorite ? '⭐' : '☆'}
                           </span>
-                          <div>
-                            <div style={{ fontWeight: 700, fontSize: '1.2rem' }}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: '1.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {group.city}
                               <span style={{ opacity: 0.5, marginLeft: '0.5rem', fontWeight: 400, fontSize: '1rem' }}>{group.country}</span>
                             </div>
@@ -934,12 +934,12 @@ export default function FlightScout() {
                             </div>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, fontSize: '1.6rem', color: getPriceColor(group.cheapest) }}>
+                            <div style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, fontSize: '1.4rem', color: getPriceColor(group.cheapest) }}>
                               {group.cheapest.toFixed(0)}€
                             </div>
-                            <div style={{ fontSize: '0.75rem', color: t.textDim }}>{group.deals.length} {group.deals.length === 1 ? 'Termin' : 'Termine'}</div>
+                            <div style={{ fontSize: '0.75rem', color: t.textDim, whiteSpace: 'nowrap' }}>{group.deals.length} {group.deals.length === 1 ? 'Termin' : 'Termine'}</div>
                           </div>
                           <span style={{ color: t.textDim, fontSize: '1.2rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
                         </div>
@@ -955,7 +955,7 @@ export default function FlightScout() {
                             return (
                               <div key={i}>
                                 <div className="deal-row">
-                                  <a href={deal.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                  <a href={deal.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                                     <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '0.9rem', fontWeight: 600, color: getPriceColor(deal.price), minWidth: '50px' }}>
                                       {deal.price.toFixed(0)}€
                                     </span>
@@ -972,7 +972,7 @@ export default function FlightScout() {
                                     {deal.early_departure && <span style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>Frühflug</span>}
                                     {deal.is_direct && <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>Direkt</span>}
                                   </a>
-                                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
                                     {alts.length > 0 && (
                                       <span onClick={() => setExpandedAlts(prev => {
                                           const next = new Set(prev);
