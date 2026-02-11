@@ -563,7 +563,7 @@ export default function FlightScout() {
         .dur-chip { padding: 0.5rem 0.875rem; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.875rem; border: 2px solid transparent; transition: all 0.2s ease; background: ${t.chipBg}; color: ${t.text}; }
         .dur-chip.selected { background: rgba(99, 102, 241, 0.2); border-color: #6366f1; }
         .city-group { border-radius: 20px; overflow: hidden; transition: all 0.3s ease; }
-        .city-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; cursor: pointer; transition: all 0.2s ease; gap: 0.75rem; }
+        .city-header { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; padding: 1rem 1.25rem; cursor: pointer; transition: all 0.2s ease; gap: 0 0.75rem; }
         .city-header:hover { background: ${t.cardHover}; }
         .fav-star { cursor: pointer; font-size: 1.2rem; transition: all 0.2s ease; padding: 0.25rem; }
         .fav-star:hover { transform: scale(1.3); }
@@ -870,9 +870,9 @@ export default function FlightScout() {
             <div className="glass" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '1rem' }}>
-                    <span style={{ fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{jobStatus.message}</span>
-                    <span style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, flexShrink: 0 }}>{jobStatus.progress}%</span>
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <div style={{ fontSize: '0.95rem', lineHeight: 1.4, marginBottom: '0.25rem' }}>{jobStatus.message}</div>
+                    <div style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, fontSize: '0.85rem', color: t.textMuted }}>{jobStatus.progress}%</div>
                   </div>
                   <div className="progress-bar"><div className="progress-fill" style={{ width: `${jobStatus.progress}%` }} /></div>
                   {(jobStatus.destinations_found > 0 || jobStatus.deals_found > 0) && (
@@ -914,37 +914,36 @@ export default function FlightScout() {
                     <div key={group.city} className="city-group" style={{ background: t.cardBg, border: `1px solid ${group.isFavorite ? 'rgba(234, 179, 8, 0.3)' : t.cardBorder}`, borderRadius: '20px' }}>
                       {/* City Header */}
                       <div className="city-header" onClick={() => setExpandedCity(isExpanded ? null : group.city)}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
-                          <span className="fav-star" onClick={(e) => { e.stopPropagation(); toggleFavorite(group.city); }}>
-                            {group.isFavorite ? '⭐' : '☆'}
-                          </span>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontWeight: 700, fontSize: 'clamp(0.95rem, 3.5vw, 1.2rem)', lineHeight: 1.3 }}>
-                              {group.city}
-                              <span style={{ opacity: 0.5, marginLeft: '0.4rem', fontWeight: 400, fontSize: '0.85em' }}>{group.country}</span>
-                            </div>
-                            {/* Date pills preview */}
-                            <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
-                              {group.deals.slice(0, 6).map((deal, i) => (
-                                <span key={i} className="date-pill" style={{ background: `${getPriceColor(deal.price)}22`, color: getPriceColor(deal.price), border: `1px solid ${deal.early_departure ? '#f59e0b' : getPriceColor(deal.price)}44` }}>
-                                  {deal.early_departure && '☀ '}{formatDate(deal.departure_date)} {deal.price.toFixed(0)}€
-                                </span>
-                              ))}
-                              {group.deals.length > 6 && (
-                                <span className="date-pill" style={{ background: t.chipBg, color: t.textMuted }}>+{group.deals.length - 6}</span>
-                              )}
-                            </div>
+                        {/* Spalte 1: Stern */}
+                        <span className="fav-star" onClick={(e) => { e.stopPropagation(); toggleFavorite(group.city); }}>
+                          {group.isFavorite ? '⭐' : '☆'}
+                        </span>
+                        {/* Spalte 2: Stadt + Date Pills (nimmt allen freien Platz) */}
+                        <div style={{ overflow: 'hidden' }}>
+                          <div style={{ fontWeight: 700, fontSize: 'clamp(0.95rem, 3.5vw, 1.15rem)', lineHeight: 1.3 }}>
+                            {group.city}{' '}
+                            <span style={{ opacity: 0.5, fontWeight: 400, fontSize: '0.85em' }}>{group.country}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
+                            {group.deals.slice(0, 6).map((deal, i) => (
+                              <span key={i} className="date-pill" style={{ background: `${getPriceColor(deal.price)}22`, color: getPriceColor(deal.price), border: `1px solid ${deal.early_departure ? '#f59e0b' : getPriceColor(deal.price)}44` }}>
+                                {deal.early_departure && '☀ '}{formatDate(deal.departure_date)} {deal.price.toFixed(0)}€
+                              </span>
+                            ))}
+                            {group.deals.length > 6 && (
+                              <span className="date-pill" style={{ background: t.chipBg, color: t.textMuted }}>+{group.deals.length - 6}</span>
+                            )}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, fontSize: '1.4rem', color: getPriceColor(group.cheapest) }}>
-                              {group.cheapest.toFixed(0)}€
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: t.textDim, whiteSpace: 'nowrap' }}>{group.deals.length} {group.deals.length === 1 ? 'Termin' : 'Termine'}</div>
+                        {/* Spalte 3: Preis */}
+                        <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, fontSize: 'clamp(1.1rem, 4vw, 1.4rem)', color: getPriceColor(group.cheapest) }}>
+                            {group.cheapest.toFixed(0)}€
                           </div>
-                          <span style={{ color: t.textDim, fontSize: '1.2rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+                          <div style={{ fontSize: '0.7rem', color: t.textDim }}>{group.deals.length} {group.deals.length === 1 ? 'Termin' : 'Termine'}</div>
                         </div>
+                        {/* Spalte 4: Arrow */}
+                        <span style={{ color: t.textDim, fontSize: '1rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
                       </div>
 
                       {/* Expanded Deals */}
