@@ -807,7 +807,7 @@ export default function FlightScout() {
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Max. Preis pro Person</label>
                 <div style={{ position: 'relative' }}>
-                  <input type="number" min="20" max="500" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value) || 70)} className="input-field" style={{ paddingRight: '3rem' }} />
+                  <input type="text" inputMode="numeric" value={maxPrice} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setMaxPrice(v === '' ? '' : parseInt(v)); }} onBlur={() => { if (!maxPrice || maxPrice < 1) setMaxPrice(70); }} className="input-field" style={{ paddingRight: '3rem' }} />
                   <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: t.textDim, fontFamily: 'Space Mono, monospace' }}>€</span>
                 </div>
               </div>
@@ -860,8 +860,8 @@ export default function FlightScout() {
             )}
 
             {/* Search Button */}
-            <button className="btn-primary" onClick={startSearch} disabled={isSearching || selectedAirports.length === 0 || (searchMode === 'cities' && selectedCities.length === 0)} style={{ width: '100%' }}>
-              {isSearching ? 'Suche läuft...' : searchMode === 'cities' ? `${selectedCities.length} Städte suchen` : 'Flüge suchen'}
+            <button className="btn-primary" onClick={() => { if (!user) { setShowAuth(true); return; } startSearch(); }} disabled={isSearching || selectedAirports.length === 0 || (searchMode === 'cities' && selectedCities.length === 0)} style={{ width: '100%' }}>
+              {isSearching ? 'Suche läuft...' : !user ? 'Anmelden um zu suchen' : searchMode === 'cities' ? `${selectedCities.length} Städte suchen` : 'Flüge suchen'}
             </button>
           </div>
 
