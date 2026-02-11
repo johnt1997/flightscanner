@@ -258,12 +258,25 @@ def create_pdf_report(deals: list[FlightDeal], origin: str, filename="Flight_Rep
     pdf.output(filename)
 
 
-# Proxy configuration from environment
+# Proxy configuration: file first, then env var fallback
 PROXY_URLS = []
-_proxy_env = os.environ.get("PROXY_URL", "")
-if _proxy_env:
-    PROXY_URLS = [p.strip() for p in _proxy_env.split(",") if p.strip()]
-    print(f"[PROXY] {len(PROXY_URLS)} Proxy(s) konfiguriert")
+_proxy_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "proxies_europe.txt")
+if os.path.isfile(_proxy_file):
+    with open(_proxy_file, "r") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if not _line:
+                continue
+            _parts = _line.split(":")
+            if len(_parts) == 4:
+                _host, _port, _user, _pw = _parts
+                PROXY_URLS.append(f"http://{_user}:{_pw}@{_host}:{_port}")
+    print(f"[PROXY] {len(PROXY_URLS)} Proxy(s) aus proxies_europe.txt geladen")
+else:
+    _proxy_env = os.environ.get("PROXY_URL", "")
+    if _proxy_env:
+        PROXY_URLS = [p.strip() for p in _proxy_env.split(",") if p.strip()]
+        print(f"[PROXY] {len(PROXY_URLS)} Proxy(s) aus Umgebungsvariable")
 
 
 class SkyscannerAPI:
@@ -298,45 +311,55 @@ class SkyscannerAPI:
             }
             print(f"  [PROXY] Verwende Proxy")
 
-    def _setup_session(self):
+    def _is_proxy_error(self, exc):
+        """Check if an exception is a proxy connectivity/auth error."""
+        msg = str(exc).lower()
+        return "proxyerror" in msg or "407" in msg or "tunnel connection failed" in msg
+
+    def _setup_session(self, max_proxy_retries=5):
         # Komplett neue Session mit frischen IDs
-        self.session = requests.Session()
-        self._apply_proxy()
-        self.traveller_context = str(uuid.uuid4())
-        self.view_id = str(uuid.uuid4())
-        ua, sec_ch_ua = random.choice(USER_AGENTS)
-        platform = '"macOS"' if 'Macintosh' in ua else '"Windows"'
+        for attempt in range(max_proxy_retries):
+            self.session = requests.Session()
+            self._apply_proxy()
+            self.traveller_context = str(uuid.uuid4())
+            self.view_id = str(uuid.uuid4())
+            ua, sec_ch_ua = random.choice(USER_AGENTS)
+            platform = '"macOS"' if 'Macintosh' in ua else '"Windows"'
 
-        # Schritt 1: Homepage besuchen wie ein echter Browser
-        browser_headers = {
-            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-            "accept-encoding": "gzip, deflate, br, zstd",
-            "accept-language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-            "cache-control": "max-age=0",
-            "sec-ch-ua": sec_ch_ua,
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": platform,
-            "sec-fetch-dest": "document",
-            "sec-fetch-mode": "navigate",
-            "sec-fetch-site": "none",
-            "sec-fetch-user": "?1",
-            "upgrade-insecure-requests": "1",
-            "user-agent": ua,
-        }
-        try:
-            self.session.get("https://www.skyscanner.at/", timeout=15, headers=browser_headers)
-            time.sleep(random.uniform(1.5, 3.0))
+            # Schritt 1: Homepage besuchen wie ein echter Browser
+            browser_headers = {
+                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "accept-encoding": "gzip, deflate, br, zstd",
+                "accept-language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+                "cache-control": "max-age=0",
+                "sec-ch-ua": sec_ch_ua,
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": platform,
+                "sec-fetch-dest": "document",
+                "sec-fetch-mode": "navigate",
+                "sec-fetch-site": "none",
+                "sec-fetch-user": "?1",
+                "upgrade-insecure-requests": "1",
+                "user-agent": ua,
+            }
+            try:
+                self.session.get("https://www.skyscanner.at/", timeout=15, headers=browser_headers)
+                time.sleep(random.uniform(1.5, 3.0))
 
-            # Schritt 2: Flugsuche-Seite besuchen (simuliert echten Nutzer)
-            browser_headers["referer"] = "https://www.skyscanner.at/"
-            browser_headers["sec-fetch-site"] = "same-origin"
-            self.session.get(
-                "https://www.skyscanner.at/transport/fluge/vie/?adultsv2=1&cabinclass=economy",
-                timeout=15, headers=browser_headers
-            )
-            time.sleep(random.uniform(1.0, 2.5))
-        except Exception as e:
-            print(f"  [SESSION] Warmup-Fehler: {e}")
+                # Schritt 2: Flugsuche-Seite besuchen (simuliert echten Nutzer)
+                browser_headers["referer"] = "https://www.skyscanner.at/"
+                browser_headers["sec-fetch-site"] = "same-origin"
+                self.session.get(
+                    "https://www.skyscanner.at/transport/fluge/vie/?adultsv2=1&cabinclass=economy",
+                    timeout=15, headers=browser_headers
+                )
+                time.sleep(random.uniform(1.0, 2.5))
+                break  # Warmup OK
+            except Exception as e:
+                if self._is_proxy_error(e) and attempt < max_proxy_retries - 1:
+                    print(f"  [SESSION] Proxy-Fehler, versuche anderen Proxy... ({attempt + 1}/{max_proxy_retries})")
+                    continue
+                print(f"  [SESSION] Warmup-Fehler: {e}")
 
         # Schritt 3: API-Headers setzen (jetzt mit echten Cookies)
         self.session.headers.update({
@@ -394,7 +417,20 @@ class SkyscannerAPI:
 
     def _retry_on_403(self, make_request, label="API", cancel_check=None):
         """Gemeinsame 403-Retry-Logik mit Wartezeiten"""
-        response = make_request()
+        # Proxy-Fehler: sofort neuen Proxy probieren (max 5x)
+        for proxy_attempt in range(5):
+            try:
+                response = make_request()
+                break
+            except Exception as e:
+                if self._is_proxy_error(e) and proxy_attempt < 4:
+                    print(f"  [{label}] Proxy-Fehler, wechsle Proxy... ({proxy_attempt + 1}/5)")
+                    self._setup_session()
+                    continue
+                raise
+        else:
+            return response
+
         if response.status_code != 403:
             return response
 
@@ -403,7 +439,6 @@ class SkyscannerAPI:
                 print(f"  [{label}] Abbruch während Retry")
                 return response
             print(f"  [{label}] 403 BLOCKED - Warte {retry_wait}s, neue Session...")
-            # Sleep in kleinen Schritten damit Cancel reagiert
             for _ in range(retry_wait):
                 if cancel_check and cancel_check():
                     print(f"  [{label}] Abbruch während Warten")
@@ -411,7 +446,14 @@ class SkyscannerAPI:
                 time.sleep(1)
             self._setup_session()
             time.sleep(random.uniform(2, 4))
-            response = make_request()
+            try:
+                response = make_request()
+            except Exception as e:
+                if self._is_proxy_error(e):
+                    print(f"  [{label}] Proxy-Fehler beim Retry, neue Session...")
+                    self._setup_session()
+                    continue
+                raise
             print(f"  [{label}] Retry -> HTTP {response.status_code}")
             if response.status_code != 403:
                 self._is_blocked = False
@@ -438,22 +480,23 @@ class SkyscannerAPI:
             ],
             "options": {"fareAttributes": {"selectedFareAttributes": []}}
         }
+        label = f"EVERYWHERE {self.ORIGIN_SKY_CODE} {departure.strftime('%d.%m.')}"
         try:
             response = self._retry_on_403(
                 lambda: self.session.post(self.API_URL, json=body, timeout=30),
-                label=f"EVERYWHERE {self.ORIGIN_SKY_CODE} {departure.strftime('%d.%m.')}",
+                label=label,
                 cancel_check=cancel_check,
             )
-            print(f"[EVERYWHERE] {self.ORIGIN_SKY_CODE} {departure.strftime('%d.%m.')} -> HTTP {response.status_code}")
+            print(f"[{label}] -> HTTP {response.status_code}")
             if response.status_code == 200:
                 data = response.json()
                 results = data.get("everywhereDestination", {}).get("results", [])
-                print(f"[EVERYWHERE] {len(results)} Ergebnisse")
+                print(f"[{label}] {len(results)} Ergebnisse")
                 return data
-            print(f"[EVERYWHERE] Fehlgeschlagen! Status {response.status_code}")
+            print(f"[{label}] Fehlgeschlagen! Status {response.status_code}")
             return {}
         except Exception as e:
-            print(f"[EVERYWHERE] Exception: {e}")
+            print(f"[{label}] Exception: {e}")
             return {}
 
     def get_specific_flight_details(self, destination_entity_id: str, departure: datetime, return_date: datetime) -> Optional[dict]:

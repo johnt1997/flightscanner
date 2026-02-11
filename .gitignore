@@ -35,5 +35,9 @@ flight-scout/backend/pdfs/
 Thumbs.db
 nul
 
+# Proxies (credentials)
+proxies_europe.txt
+Webshare residential proxies.txt
+
 # Temp output
 city_ids_output.txt
