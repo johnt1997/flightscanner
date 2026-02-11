@@ -129,6 +129,10 @@ def get_user_id(request: Request) -> int:
 
 @app.get("/")
 def root():
+    # Serve frontend in production, API status in dev
+    index = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist", "index.html")
+    if os.path.isfile(index):
+        return FileResponse(index)
     return {"status": "ok", "service": "Flight Scout API"}
 
 
