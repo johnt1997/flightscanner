@@ -159,9 +159,14 @@ export default function CalendarView({ airports, maxPrice, duration, adults, bla
           <button onClick={prevMonth} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '1.2rem' }}>
             ◀
           </button>
-          <h2 style={{ margin: 0, fontSize: '1.5rem' }}>
-            {MONTH_NAMES[month]} {year}
-          </h2>
+          <div style={{ textAlign: 'center' }}>
+            <h2 style={{ margin: 0, fontSize: '1.5rem' }}>
+              {MONTH_NAMES[month]} {year}
+            </h2>
+            <div style={{ fontSize: '0.8rem', opacity: 0.5, marginTop: '0.25rem' }}>
+              {duration} {duration === 1 ? 'Nacht' : 'Nächte'} · max {maxPrice}€
+            </div>
+          </div>
           <button onClick={nextMonth} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '1.2rem' }}>
             ▶
           </button>
@@ -221,19 +226,31 @@ export default function CalendarView({ airports, maxPrice, duration, adults, bla
         <div className="glass" style={{ padding: '1.5rem' }}>
           <h3 style={{ margin: '0 0 1rem 0' }}>
             Deals am {new Date(selectedDay.date).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            <span style={{ fontWeight: 400, fontSize: '0.875rem', opacity: 0.6, marginLeft: '0.75rem' }}>
+              ({duration} {duration === 1 ? 'Nacht' : 'Nächte'})
+            </span>
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {selectedDay.deals.map((deal, i) => (
-              <div key={i} className="result-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <a
+                key={i}
+                href={deal.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="result-card"
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+              >
                 <div>
-                  <span style={{ fontWeight: 600 }}>{deal.city}</span>
-                  <span style={{ opacity: 0.5, marginLeft: '0.5rem' }}>{deal.country}</span>
+                  <span style={{ fontWeight: 600 }}>{deal.country}</span>
                   <span style={{ marginLeft: '0.75rem', fontSize: '0.875rem', color: '#94a3b8' }}>ab {deal.origin}</span>
                 </div>
-                <div style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, color: '#22c55e' }}>
-                  {Math.round(deal.price)}€
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, color: '#22c55e' }}>
+                    {Math.round(deal.price)}€
+                  </span>
+                  <span style={{ fontSize: '0.75rem', opacity: 0.5 }}>↗</span>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>

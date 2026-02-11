@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict, field
 from typing import Optional
 import time
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from fpdf import FPDF
 
 PDF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pdfs")
@@ -332,13 +334,14 @@ class SkyscannerAPI:
 
     def generate_trips(self, start_date: datetime, end_date: datetime, start_weekday: int, duration: int) -> list[tuple[datetime, datetime]]:
         trips = []
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         current = start_date
         while current.weekday() != start_weekday:
             current += timedelta(days=1)
         while current <= end_date:
             dep = current
             ret = dep + timedelta(days=duration)
-            if ret <= end_date:
+            if ret <= end_date and dep >= today:
                 trips.append((dep, ret))
             current += timedelta(days=7)
         return trips
@@ -713,20 +716,40 @@ class SkyscannerAPI:
             cancel_check=None, on_deals=None, on_progress=None):
         trips = self.generate_trips(start_date, end_date, start_weekday, duration)
 
-        for i, (dep_date, ret_date) in enumerate(trips):
+        def process_trip(dep_date, ret_date):
             if cancel_check and cancel_check():
-                break
+                return []
+            # Eigene Session pro Worker → kein 403-Konflikt
+            worker = SkyscannerAPI(
+                origin_entity_id=self.VIENNA_ENTITY_ID,
+                adults=self.ADULTS,
+                start_hour=self.START_HOUR,
+                origin_sky_code=self.ORIGIN_SKY_CODE,
+                max_return_hour=self.MAX_RETURN_HOUR,
+            )
+            worker.MAX_PRICE = self.MAX_PRICE
+            worker.BLACKLIST_COUNTRIES = self.BLACKLIST_COUNTRIES
             try:
-                trip_deals = self.scrape_weekend(dep_date, ret_date, cancel_check=cancel_check)
+                return worker.scrape_weekend(dep_date, ret_date, cancel_check=cancel_check)
+            except Exception as e:
+                print(f"Error: {e}")
+                return []
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {}
+            for dep_date, ret_date in trips:
+                if cancel_check and cancel_check():
+                    break
+                future = executor.submit(process_trip, dep_date, ret_date)
+                futures[future] = (dep_date, ret_date)
+
+            for future in as_completed(futures):
+                trip_deals = future.result()
                 self.deals.extend(trip_deals)
                 if on_deals and trip_deals:
                     on_deals(trip_deals)
                 if on_progress:
-                    on_progress(i + 1, len(trips))
-                time.sleep(random.uniform(2, 4))
-            except Exception as e:
-                print(f"Error: {e}")
-                continue
+                    on_progress(0, len(trips))
 
         return self.deals
 
@@ -791,19 +814,38 @@ class SkyscannerAPI:
         """Run-Methode für gezielte Stadtsuche"""
         trips = self.generate_trips(start_date, end_date, start_weekday, duration)
 
-        for i, (dep_date, ret_date) in enumerate(trips):
+        def process_city_trip(dep_date, ret_date):
             if cancel_check and cancel_check():
-                break
+                return []
+            # Eigene Session pro Worker → kein 403-Konflikt
+            worker = SkyscannerAPI(
+                origin_entity_id=self.VIENNA_ENTITY_ID,
+                adults=self.ADULTS,
+                start_hour=self.START_HOUR,
+                origin_sky_code=self.ORIGIN_SKY_CODE,
+                max_return_hour=self.MAX_RETURN_HOUR,
+            )
+            worker.MAX_PRICE = self.MAX_PRICE
             try:
-                trip_deals = self.search_specific_cities(cities, dep_date, ret_date, cancel_check=cancel_check)
+                return worker.search_specific_cities(cities, dep_date, ret_date, cancel_check=cancel_check)
+            except Exception as e:
+                print(f"Error city search: {e}")
+                return []
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {}
+            for dep_date, ret_date in trips:
+                if cancel_check and cancel_check():
+                    break
+                future = executor.submit(process_city_trip, dep_date, ret_date)
+                futures[future] = (dep_date, ret_date)
+
+            for future in as_completed(futures):
+                trip_deals = future.result()
                 self.deals.extend(trip_deals)
                 if on_deals and trip_deals:
                     on_deals(trip_deals)
                 if on_progress:
-                    on_progress(i + 1, len(trips))
-                time.sleep(random.uniform(4, 8))
-            except Exception as e:
-                print(f"Error city search: {e}")
-                continue
+                    on_progress(0, len(trips))
 
         return self.deals

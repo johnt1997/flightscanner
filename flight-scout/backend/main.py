@@ -12,6 +12,8 @@ from typing import Optional
 import asyncio
 import uuid
 import calendar
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from scraper import SkyscannerAPI, create_pdf_report, FlightDeal, PDF_DIR, CITY_DATABASE
 import os
@@ -347,6 +349,7 @@ def run_search(job_id: str, request: SearchRequest):
 
         all_deals: list[FlightDeal] = []
         seen_cities: set[str] = set()
+        progress_lock = threading.Lock()
 
         start_date = datetime.strptime(request.start_date, "%Y-%m-%d")
         end_date = datetime.strptime(request.end_date, "%Y-%m-%d")
@@ -365,21 +368,23 @@ def run_search(job_id: str, request: SearchRequest):
 
         def on_deals(trip_deals: list[FlightDeal], airport_name: str):
             nonlocal seen_cities
-            for deal in trip_deals:
-                deal.origin = airport_name
-            all_deals.extend(trip_deals)
-            new_dicts = [_deal_to_dict(d) for d in trip_deals]
-            job["partial_results"] = [_deal_to_dict(d) for d in sorted(all_deals, key=lambda x: x.price)]
-            job["new_deals"].extend(new_dicts)
-            job["deals_found"] = len(all_deals)
-            for d in trip_deals:
-                seen_cities.add(d.city)
-            job["destinations_found"] = len(seen_cities)
+            with progress_lock:
+                for deal in trip_deals:
+                    deal.origin = airport_name
+                all_deals.extend(trip_deals)
+                new_dicts = [_deal_to_dict(d) for d in trip_deals]
+                job["partial_results"] = [_deal_to_dict(d) for d in sorted(all_deals, key=lambda x: x.price)]
+                job["new_deals"].extend(new_dicts)
+                job["deals_found"] = len(all_deals)
+                for d in trip_deals:
+                    seen_cities.add(d.city)
+                job["destinations_found"] = len(seen_cities)
 
         def on_progress(trip_idx: int, trip_total: int):
             nonlocal completed_trips
-            completed_trips += 1
-            job["progress"] = min(int((completed_trips / max(total_trips, 1)) * 90), 90)
+            with progress_lock:
+                completed_trips += 1
+                job["progress"] = min(int((completed_trips / max(total_trips, 1)) * 90), 90)
 
         def cancel_check():
             return job.get("cancelled", False)
@@ -467,82 +472,127 @@ def run_search(job_id: str, request: SearchRequest):
         jobs[job_id]["progress"] = 0
 
 
+def _search_calendar_day(dep_date: datetime, ret_date: datetime, req: CalendarRequest) -> dict:
+    """Sucht Deals für einen einzelnen Tag (wird parallel aufgerufen)."""
+    day_deals = []
+
+    for airport_code in req.airports:
+        if airport_code not in AIRPORTS:
+            continue
+        airport = AIRPORTS[airport_code]
+
+        scraper = SkyscannerAPI(
+            origin_entity_id=airport["id"],
+            adults=req.adults,
+            start_hour=0,
+            origin_sky_code=airport["code"],
+        )
+        if req.blacklist_countries:
+            scraper.BLACKLIST_COUNTRIES = req.blacklist_countries
+        scraper.MAX_PRICE = req.max_price
+
+        data = scraper.search_flights(dep_date, ret_date)
+        if not data:
+            continue
+
+        results = data.get("everywhereDestination", {}).get("results", [])
+        for result in results:
+            if result.get("type") != "LOCATION":
+                continue
+            content = result.get("content", {})
+            location = content.get("location", {})
+            fq = content.get("flightQuotes", {})
+            if not fq:
+                continue
+            raw_price = fq.get("cheapest", {}).get("rawPrice", 9999)
+            price_pp = raw_price / req.adults
+            if price_pp <= req.max_price and location.get("type") == "Nation":
+                # Skyscanner-Link bauen
+                sky_code = location.get("skyCode", "")
+                url = (
+                    f"https://www.skyscanner.at/transport/fluge/{airport['code']}/{sky_code.lower()}/"
+                    f"{dep_date.strftime('%y%m%d')}/{ret_date.strftime('%y%m%d')}/"
+                    f"?adultsv2={req.adults}&cabinclass=economy&rtn=1&preferdirects=true"
+                )
+                day_deals.append({
+                    "country": location.get("name", "?"),
+                    "price": round(price_pp, 2),
+                    "origin": airport["name"],
+                    "url": url,
+                })
+
+    if day_deals:
+        min_price = min(d["price"] for d in day_deals)
+        return {
+            "date": dep_date.strftime("%Y-%m-%d"),
+            "min_price": round(min_price, 2),
+            "deals_count": len(day_deals),
+            "deals": sorted(day_deals, key=lambda x: x["price"])[:5],
+        }
+    else:
+        return {
+            "date": dep_date.strftime("%Y-%m-%d"),
+            "min_price": None,
+            "deals_count": 0,
+            "deals": [],
+        }
+
+
 def run_calendar_search(job_id: str, req: CalendarRequest):
-    """Background task für die Kalender-Suche - scannt jeden Tag im Monat"""
+    """Background task für die Kalender-Suche - scannt jeden Tag im Monat (parallel)"""
     try:
         jobs[job_id]["status"] = "running"
 
         year, month = map(int, req.month.split("-"))
         num_days = calendar.monthrange(year, month)[1]
-        dates_data = []
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-        total_days = num_days
-        processed = 0
+        # Vergangene Tage sofort abfertigen, zukünftige sammeln
+        results_by_day = {}
+        future_days = []
 
         for day in range(1, num_days + 1):
             dep_date = datetime(year, month, day)
-            ret_date = dep_date + timedelta(days=req.duration)
-
-            jobs[job_id]["message"] = f"Prüfe {dep_date.strftime('%d.%m.%Y')}..."
-            jobs[job_id]["progress"] = int((processed / total_days) * 95)
-
-            day_deals = []
-
-            for airport_code in req.airports:
-                if airport_code not in AIRPORTS:
-                    continue
-                airport = AIRPORTS[airport_code]
-
-                scraper = SkyscannerAPI(
-                    origin_entity_id=airport["id"],
-                    adults=req.adults,
-                    start_hour=0,
-                    origin_sky_code=airport["code"],
-                )
-                if req.blacklist_countries:
-                    scraper.BLACKLIST_COUNTRIES = req.blacklist_countries
-                scraper.MAX_PRICE = req.max_price
-
-                data = scraper.search_flights(dep_date, ret_date)
-                if not data:
-                    continue
-
-                results = data.get("everywhereDestination", {}).get("results", [])
-                for result in results:
-                    if result.get("type") != "LOCATION":
-                        continue
-                    content = result.get("content", {})
-                    location = content.get("location", {})
-                    fq = content.get("flightQuotes", {})
-                    if not fq:
-                        continue
-                    raw_price = fq.get("cheapest", {}).get("rawPrice", 9999)
-                    price_pp = raw_price / req.adults
-                    if price_pp <= req.max_price:
-                        day_deals.append({
-                            "city": location.get("name", "?"),
-                            "country": location.get("name", "?"),
-                            "price": price_pp,
-                            "origin": airport["name"],
-                        })
-
-            if day_deals:
-                min_price = min(d["price"] for d in day_deals)
-                dates_data.append({
-                    "date": dep_date.strftime("%Y-%m-%d"),
-                    "min_price": round(min_price, 2),
-                    "deals_count": len(day_deals),
-                    "deals": sorted(day_deals, key=lambda x: x["price"])[:5],
-                })
-            else:
-                dates_data.append({
+            if dep_date < today:
+                results_by_day[day] = {
                     "date": dep_date.strftime("%Y-%m-%d"),
                     "min_price": None,
                     "deals_count": 0,
                     "deals": [],
-                })
+                }
+            else:
+                future_days.append(day)
 
-            processed += 1
+        total_future = len(future_days)
+        processed = 0
+
+        # Parallel mit max 3 gleichzeitigen Requests
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            future_to_day = {}
+            for day in future_days:
+                dep_date = datetime(year, month, day)
+                ret_date = dep_date + timedelta(days=req.duration)
+                future = executor.submit(_search_calendar_day, dep_date, ret_date, req)
+                future_to_day[future] = day
+
+            for future in as_completed(future_to_day):
+                day = future_to_day[future]
+                try:
+                    results_by_day[day] = future.result()
+                except Exception as e:
+                    print(f"[CALENDAR] Fehler Tag {day}: {e}")
+                    results_by_day[day] = {
+                        "date": datetime(year, month, day).strftime("%Y-%m-%d"),
+                        "min_price": None,
+                        "deals_count": 0,
+                        "deals": [],
+                    }
+                processed += 1
+                jobs[job_id]["progress"] = int((processed / total_future) * 95) if total_future else 95
+                jobs[job_id]["message"] = f"Prüfe Tage... ({processed}/{total_future})"
+
+        # Ergebnisse in Reihenfolge sortieren
+        dates_data = [results_by_day[day] for day in range(1, num_days + 1)]
 
         jobs[job_id]["status"] = "completed"
         jobs[job_id]["progress"] = 100
