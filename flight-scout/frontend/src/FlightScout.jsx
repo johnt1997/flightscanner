@@ -528,6 +528,7 @@ export default function FlightScout() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
         * { box-sizing: border-box; }
+        html, body { overflow-x: hidden; }
         .glass { background: ${t.glass}; backdrop-filter: blur(20px); border: 1px solid ${t.glassBorder}; border-radius: 24px; }
         .btn-primary { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border: none; padding: 1rem 2rem; border-radius: 16px; color: white; font-weight: 600; font-size: 1.1rem; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 24px rgba(99, 102, 241, 0.4); }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99, 102, 241, 0.5); }
@@ -562,11 +563,11 @@ export default function FlightScout() {
         .dur-chip { padding: 0.5rem 0.875rem; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.875rem; border: 2px solid transparent; transition: all 0.2s ease; background: ${t.chipBg}; color: ${t.text}; }
         .dur-chip.selected { background: rgba(99, 102, 241, 0.2); border-color: #6366f1; }
         .city-group { border-radius: 20px; overflow: hidden; transition: all 0.3s ease; }
-        .city-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; cursor: pointer; transition: all 0.2s ease; overflow: hidden; gap: 0.75rem; }
+        .city-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; cursor: pointer; transition: all 0.2s ease; gap: 0.75rem; }
         .city-header:hover { background: ${t.cardHover}; }
         .fav-star { cursor: pointer; font-size: 1.2rem; transition: all 0.2s ease; padding: 0.25rem; }
         .fav-star:hover { transform: scale(1.3); }
-        .deal-row { display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1.5rem; border-top: 1px solid ${t.cardBorder}; transition: all 0.2s ease; overflow: hidden; gap: 0.5rem; }
+        .deal-row { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.25rem; border-top: 1px solid ${t.cardBorder}; transition: all 0.2s ease; gap: 0.5rem; }
         .deal-row:hover { background: ${t.cardHover}; }
         .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #22c55e; color: white; padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 600; z-index: 9999; animation: fadeInUp 0.3s ease; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
@@ -583,11 +584,12 @@ export default function FlightScout() {
           .header-controls { position: static !important; justify-content: center !important; margin-top: 0.75rem; flex-wrap: wrap; }
           .header-title { font-size: 2rem !important; }
           .header-subtitle { font-size: 0.95rem !important; }
-          .main-container { padding: 1rem !important; }
-          .deal-row { padding: 0.75rem 1rem !important; gap: 0.5rem; }
-          .city-header { padding: 1rem !important; }
+          .main-container { padding: 0.75rem !important; }
+          .deal-row { padding: 0.6rem 0.75rem !important; }
+          .city-header { padding: 0.75rem 0.75rem !important; }
           .btn-primary { padding: 0.75rem 1.25rem !important; font-size: 1rem !important; }
           .tab-btn { padding: 0.5rem 0.875rem !important; font-size: 0.875rem !important; }
+          .date-pill { font-size: 0.7rem !important; padding: 0.25rem 0.5rem !important; }
         }
       `}</style>
 
@@ -912,14 +914,14 @@ export default function FlightScout() {
                     <div key={group.city} className="city-group" style={{ background: t.cardBg, border: `1px solid ${group.isFavorite ? 'rgba(234, 179, 8, 0.3)' : t.cardBorder}`, borderRadius: '20px' }}>
                       {/* City Header */}
                       <div className="city-header" onClick={() => setExpandedCity(isExpanded ? null : group.city)}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
                           <span className="fav-star" onClick={(e) => { e.stopPropagation(); toggleFavorite(group.city); }}>
                             {group.isFavorite ? '⭐' : '☆'}
                           </span>
                           <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontWeight: 700, fontSize: '1.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontWeight: 700, fontSize: 'clamp(0.95rem, 3.5vw, 1.2rem)', lineHeight: 1.3 }}>
                               {group.city}
-                              <span style={{ opacity: 0.5, marginLeft: '0.5rem', fontWeight: 400, fontSize: '1rem' }}>{group.country}</span>
+                              <span style={{ opacity: 0.5, marginLeft: '0.4rem', fontWeight: 400, fontSize: '0.85em' }}>{group.country}</span>
                             </div>
                             {/* Date pills preview */}
                             <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
@@ -955,22 +957,22 @@ export default function FlightScout() {
                             return (
                               <div key={i}>
                                 <div className="deal-row">
-                                  <a href={deal.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                                    <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '0.9rem', fontWeight: 600, color: getPriceColor(deal.price), minWidth: '50px' }}>
+                                  <a href={deal.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '0.85rem', fontWeight: 600, color: getPriceColor(deal.price), minWidth: '42px' }}>
                                       {deal.price.toFixed(0)}€
                                     </span>
-                                    <span style={{ color: t.textMuted, fontSize: '0.9rem' }}>
+                                    <span style={{ color: t.textMuted, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                                       {formatDateFull(deal.departure_date)} – {formatDateFull(deal.return_date)}
                                     </span>
                                     {deal.flight_time && deal.flight_time !== '??:??' && (
-                                      <span style={{ color: deal.early_departure ? '#f59e0b' : t.textDim, fontSize: '0.85rem' }}>
+                                      <span style={{ color: deal.early_departure ? '#f59e0b' : t.textDim, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                                         {deal.early_departure && '☀ '}{deal.flight_time}
                                         {deal.return_flight_time && deal.return_flight_time !== '??:??' && ` / ${deal.return_flight_time}`}
                                       </span>
                                     )}
-                                    <span style={{ color: t.textDim, fontSize: '0.85rem' }}>ab {deal.origin}</span>
-                                    {deal.early_departure && <span style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>Frühflug</span>}
-                                    {deal.is_direct && <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>Direkt</span>}
+                                    <span style={{ color: t.textDim, fontSize: '0.8rem' }}>ab {deal.origin}</span>
+                                    {deal.early_departure && <span style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '0.1rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600 }}>Früh</span>}
+                                    {deal.is_direct && <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '0.1rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600 }}>Direkt</span>}
                                   </a>
                                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
                                     {alts.length > 0 && (
