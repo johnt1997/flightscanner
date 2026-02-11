@@ -258,6 +258,14 @@ def create_pdf_report(deals: list[FlightDeal], origin: str, filename="Flight_Rep
     pdf.output(filename)
 
 
+# Proxy configuration from environment
+PROXY_URLS = []
+_proxy_env = os.environ.get("PROXY_URL", "")
+if _proxy_env:
+    PROXY_URLS = [p.strip() for p in _proxy_env.split(",") if p.strip()]
+    print(f"[PROXY] {len(PROXY_URLS)} Proxy(s) konfiguriert")
+
+
 class SkyscannerAPI:
     API_URL = "https://www.skyscanner.at/g/radar/api/v2/web-unified-search/"
     MAX_PRICE = 70
@@ -272,6 +280,7 @@ class SkyscannerAPI:
         self.view_id = str(uuid.uuid4())
         self.VIENNA_ENTITY_ID = origin_entity_id
         self.ORIGIN_SKY_CODE = origin_sky_code.lower()
+        self._apply_proxy()
         self._setup_session()
         self.ADULTS = adults
         self.START_HOUR = start_hour
@@ -279,9 +288,20 @@ class SkyscannerAPI:
         self.deals: list[FlightDeal] = []
         self._is_blocked = False
 
+    def _apply_proxy(self):
+        """Apply a random proxy from the configured list."""
+        if PROXY_URLS:
+            proxy_url = random.choice(PROXY_URLS)
+            self.session.proxies = {
+                "http": proxy_url,
+                "https": proxy_url,
+            }
+            print(f"  [PROXY] Verwende Proxy")
+
     def _setup_session(self):
         # Komplett neue Session mit frischen IDs
         self.session = requests.Session()
+        self._apply_proxy()
         self.traveller_context = str(uuid.uuid4())
         self.view_id = str(uuid.uuid4())
         ua, sec_ch_ua = random.choice(USER_AGENTS)
