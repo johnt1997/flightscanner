@@ -14,9 +14,10 @@ COPY flight-scout/backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY flight-scout/backend/ ./
+RUN rm -f uvicorn
 COPY --from=frontend-build /app/frontend/dist ../frontend/dist
 
 ENV PORT=8000
 EXPOSE 8000
 
-CMD uvicorn main:app --host 0.0.0.0 --port $PORT
+CMD ["sh", "-c", "python -m uvicorn main:app --host 0.0.0.0 --port $PORT"]

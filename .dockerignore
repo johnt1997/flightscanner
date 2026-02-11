@@ -1,0 +1,7 @@
+flight-scout/frontend/node_modules
+flight-scout/frontend/dist
+flight-scout/backend/__pycache__
+flight-scout/backend/uvicorn
+flight-scout/backend/pdfs
+flight-scout/backend/*.db
+.git
