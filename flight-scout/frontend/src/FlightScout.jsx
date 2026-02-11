@@ -867,10 +867,10 @@ export default function FlightScout() {
           {isSearching && jobStatus && (
             <div className="glass" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <span>{jobStatus.message}</span>
-                    <span style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700 }}>{jobStatus.progress}%</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '1rem' }}>
+                    <span style={{ fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{jobStatus.message}</span>
+                    <span style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, flexShrink: 0 }}>{jobStatus.progress}%</span>
                   </div>
                   <div className="progress-bar"><div className="progress-fill" style={{ width: `${jobStatus.progress}%` }} /></div>
                   {(jobStatus.destinations_found > 0 || jobStatus.deals_found > 0) && (

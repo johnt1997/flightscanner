@@ -604,10 +604,16 @@ class SkyscannerAPI:
             print(f"  [COUNTRY] Exception: {e}")
             return {}
 
-    def scrape_weekend(self, friday: datetime, sunday: datetime, cancel_check=None) -> list[FlightDeal]:
+    def scrape_weekend(self, friday: datetime, sunday: datetime, cancel_check=None,
+                       on_deals=None, on_status=None) -> list[FlightDeal]:
         self._is_blocked = False  # Reset pro Trip
         if cancel_check and cancel_check():
             return []
+
+        date_str = friday.strftime('%d.%m.')
+        if on_status:
+            on_status(f"🔍 {date_str} Everywhere-Suche...")
+
         data = self.search_flights(friday, sunday, cancel_check=cancel_check)
         if not data:
             return []
@@ -615,6 +621,7 @@ class SkyscannerAPI:
         results = data.get("everywhereDestination", {}).get("results", [])
         deals = []
         cheap_countries = []
+        skipped_countries = []
 
         for result in results:
             if result.get("type") != "LOCATION":
@@ -633,19 +640,30 @@ class SkyscannerAPI:
             if self.BLACKLIST_COUNTRIES and country_name in self.BLACKLIST_COUNTRIES:
                 continue
 
-            if price_per_person <= self.MAX_PRICE and location.get("type") == "Nation":
-                cheap_countries.append({
-                    "name": country_name,
-                    "entity_id": location.get("id"),
-                    "price": price_per_person
-                })
+            if location.get("type") == "Nation":
+                if price_per_person <= self.MAX_PRICE:
+                    cheap_countries.append({
+                        "name": country_name,
+                        "entity_id": location.get("id"),
+                        "price": price_per_person
+                    })
+                else:
+                    skipped_countries.append(f"{country_name} ({price_per_person:.0f}€)")
 
-        for country in cheap_countries:
+        if on_status:
+            on_status(f"🌍 {date_str} {len(cheap_countries)} günstige Länder gefunden, {len(skipped_countries)} zu teuer")
+
+        for ci, country in enumerate(cheap_countries):
             if cancel_check and cancel_check():
                 break
+
+            if on_status:
+                on_status(f"🔎 {date_str} {country['name']} durchsuchen... ({ci+1}/{len(cheap_countries)})")
+
             city_data = self.search_country_cities(country["entity_id"], friday, sunday, cancel_check=cancel_check)
             city_results = city_data.get("countryDestination", {}).get("results", [])
 
+            cities_in_country = []
             for result in city_results:
                 if result.get("type") != "LOCATION":
                     continue
@@ -667,8 +685,15 @@ class SkyscannerAPI:
                 if not city_entity_id:
                     continue
 
+                cities_in_country.append((location, cheapest, price_per_person, city_entity_id))
+
+            for cj, (location, cheapest, price_per_person, city_entity_id) in enumerate(cities_in_country):
                 if cancel_check and cancel_check():
                     break
+
+                city_name_api = location.get('name', '?')
+                if on_status:
+                    on_status(f"✈️ {date_str} {city_name_api}, {country['name']} prüfen... ({cj+1}/{len(cities_in_country)})")
 
                 # Detail-Call nur versuchen wenn nicht schon geblockt
                 if not self._is_blocked:
@@ -683,6 +708,8 @@ class SkyscannerAPI:
                 alts = []
 
                 if details is None:
+                    if on_status:
+                        on_status(f"⚠️ {city_name_api} – kein API-Response")
                     continue
                 elif details.get("status") == "ok":
                     final_price = details['price']
@@ -692,8 +719,12 @@ class SkyscannerAPI:
                     alts = details.get('alternatives', [])
                 elif details.get("status") == "blocked":
                     self._is_blocked = True
-                    print(f"  [FALLBACK] {location.get('name')} -> Country-Preis {price_per_person:.0f}€ (ohne Uhrzeiten)")
+                    if on_status:
+                        on_status(f"🛡️ API-Limit erreicht, nutze Fallback-Preise")
+                    print(f"  [FALLBACK] {city_name_api} -> Country-Preis {price_per_person:.0f}€ (ohne Uhrzeiten)")
                 elif details.get("status") == "too_early_or_expensive":
+                    if on_status:
+                        on_status(f"💸 {city_name_api} – zu teuer oder ungünstige Zeiten")
                     continue
 
                 coords = location.get('coordinates', {})
@@ -725,6 +756,10 @@ class SkyscannerAPI:
                 )
                 deals.append(deal)
 
+                # Sofort an Callback melden statt am Ende
+                if on_deals:
+                    on_deals([deal])
+
                 if not self._is_blocked:
                     time.sleep(random.uniform(3, 6))
 
@@ -733,7 +768,7 @@ class SkyscannerAPI:
         return deals
 
     def run(self, start_date: datetime, end_date: datetime, start_weekday: int = 4, duration: int = 2,
-            cancel_check=None, on_deals=None, on_progress=None):
+            cancel_check=None, on_deals=None, on_progress=None, on_status=None):
         trips = self.generate_trips(start_date, end_date, start_weekday, duration)
 
         def process_trip(dep_date, ret_date):
@@ -750,7 +785,9 @@ class SkyscannerAPI:
             worker.MAX_PRICE = self.MAX_PRICE
             worker.BLACKLIST_COUNTRIES = self.BLACKLIST_COUNTRIES
             try:
-                return worker.scrape_weekend(dep_date, ret_date, cancel_check=cancel_check)
+                # on_deals wird jetzt direkt in scrape_weekend pro Stadt gefeuert
+                return worker.scrape_weekend(dep_date, ret_date, cancel_check=cancel_check,
+                                             on_deals=on_deals, on_status=on_status)
             except Exception as e:
                 print(f"Error: {e}")
                 return []
@@ -766,25 +803,28 @@ class SkyscannerAPI:
             for future in as_completed(futures):
                 trip_deals = future.result()
                 self.deals.extend(trip_deals)
-                if on_deals and trip_deals:
-                    on_deals(trip_deals)
+                # on_deals wird bereits in scrape_weekend gefeuert, hier nur progress
                 if on_progress:
                     on_progress(0, len(trips))
 
         return self.deals
 
-    def search_specific_cities(self, cities: list[str], departure: datetime, return_date: datetime, cancel_check=None) -> list[FlightDeal]:
+    def search_specific_cities(self, cities: list[str], departure: datetime, return_date: datetime,
+                               cancel_check=None, on_deals=None, on_status=None) -> list[FlightDeal]:
         """Gezielte Suche nach bestimmten Städten statt Everywhere"""
         deals = []
         self._is_blocked = False
         self._setup_session()
+        date_str = departure.strftime('%d.%m.')
         print(f"\n[CITY-SEARCH] {departure.strftime('%d.%m.%Y')}-{return_date.strftime('%d.%m.%Y')} | {len(cities)} Städte | Origin: {self.ORIGIN_SKY_CODE} | MaxPrice: {self.MAX_PRICE}€ | MinHour: {self.START_HOUR} | MaxReturnHour: {self.MAX_RETURN_HOUR}")
-        for city_name in cities:
+        for ci, city_name in enumerate(cities):
             if cancel_check and cancel_check():
                 print(f"  [CITY-SEARCH] Abgebrochen durch Benutzer")
                 break
             if self._is_blocked:
                 print(f"  [SKIP] {city_name} -> übersprungen (403-Block aktiv)")
+                if on_status:
+                    on_status(f"🛡️ {city_name} übersprungen (API-Limit)")
                 continue
 
             city_info = CITY_DATABASE.get(city_name)
@@ -792,14 +832,21 @@ class SkyscannerAPI:
                 print(f"  [SKIP] {city_name} - nicht in CITY_DATABASE!")
                 continue
 
+            if on_status:
+                on_status(f"✈️ {date_str} {city_name} prüfen... ({ci+1}/{len(cities)})")
+
             print(f"  [SEARCH] {city_name} (entity={city_info['entity_id']})...")
             details = self.get_specific_flight_details(city_info["entity_id"], departure, return_date)
 
             if details is None:
                 print(f"  [RESULT] {city_name} -> None (API-Fehler)")
+                if on_status:
+                    on_status(f"⚠️ {city_name} – kein Response")
             elif details.get("status") == "blocked":
                 self._is_blocked = True
                 print(f"  [RESULT] {city_name} -> 403 geblockt, restliche Cities übersprungen")
+                if on_status:
+                    on_status(f"🛡️ API-Limit erreicht bei {city_name}")
             elif details.get("status") == "ok":
                 is_early = details.get('early_departure', False)
                 early_tag = " [FRÜH]" if is_early else ""
@@ -820,8 +867,12 @@ class SkyscannerAPI:
                     alternatives=details.get("alternatives", []),
                 )
                 deals.append(deal)
+                if on_deals:
+                    on_deals([deal])
             else:
                 print(f"  [RESULT] {city_name} -> {details.get('status')} (kein passender Flug)")
+                if on_status:
+                    on_status(f"💸 {city_name} – kein passender Flug")
 
             time.sleep(random.uniform(3, 6))
 
@@ -830,7 +881,7 @@ class SkyscannerAPI:
 
     def run_city_search(self, cities: list[str], start_date: datetime, end_date: datetime,
                         start_weekday: int = 4, duration: int = 2,
-                        cancel_check=None, on_deals=None, on_progress=None):
+                        cancel_check=None, on_deals=None, on_progress=None, on_status=None):
         """Run-Methode für gezielte Stadtsuche"""
         trips = self.generate_trips(start_date, end_date, start_weekday, duration)
 
@@ -847,7 +898,10 @@ class SkyscannerAPI:
             )
             worker.MAX_PRICE = self.MAX_PRICE
             try:
-                return worker.search_specific_cities(cities, dep_date, ret_date, cancel_check=cancel_check)
+                # on_deals wird direkt in search_specific_cities pro Stadt gefeuert
+                return worker.search_specific_cities(cities, dep_date, ret_date,
+                                                     cancel_check=cancel_check,
+                                                     on_deals=on_deals, on_status=on_status)
             except Exception as e:
                 print(f"Error city search: {e}")
                 return []
@@ -863,8 +917,7 @@ class SkyscannerAPI:
             for future in as_completed(futures):
                 trip_deals = future.result()
                 self.deals.extend(trip_deals)
-                if on_deals and trip_deals:
-                    on_deals(trip_deals)
+                # on_deals wird bereits in search_specific_cities gefeuert, hier nur progress
                 if on_progress:
                     on_progress(0, len(trips))
 

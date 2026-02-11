@@ -385,6 +385,10 @@ def run_search(job_id: str, request: SearchRequest):
                     seen_cities.add(d.city)
                 job["destinations_found"] = len(seen_cities)
 
+        def on_status(message: str):
+            with progress_lock:
+                job["message"] = message
+
         def on_progress(trip_idx: int, trip_total: int):
             nonlocal completed_trips
             with progress_lock:
@@ -429,6 +433,7 @@ def run_search(job_id: str, request: SearchRequest):
                         cancel_check=cancel_check,
                         on_deals=lambda deals, an=airport["name"]: on_deals(deals, an),
                         on_progress=on_progress,
+                        on_status=on_status,
                     )
                 else:
                     job["message"] = f"Suche ab {airport['name']} ({dur} {'Nacht' if dur == 1 else 'Nächte'})..."
@@ -444,6 +449,7 @@ def run_search(job_id: str, request: SearchRequest):
                         cancel_check=cancel_check,
                         on_deals=lambda deals, an=airport["name"]: on_deals(deals, an),
                         on_progress=on_progress,
+                        on_status=on_status,
                     )
 
         was_cancelled = job.get("cancelled", False)
