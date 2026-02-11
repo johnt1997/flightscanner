@@ -122,11 +122,6 @@ export default function FlightScout() {
   const [savedDeals, setSavedDeals] = useState([]);
   const [savingDealIndex, setSavingDealIndex] = useState(null);
 
-  // Alert State
-  const [alerts, setAlerts] = useState([]);
-  const [alertCity, setAlertCity] = useState('');
-  const [alertMaxPrice, setAlertMaxPrice] = useState(50);
-  const [alertChatId, setAlertChatId] = useState('');
 
   // Share toast
   const [showShareToast, setShowShareToast] = useState(false);
@@ -239,7 +234,7 @@ export default function FlightScout() {
   }, [user]);
 
   useEffect(() => {
-    if (user && activeTab === 'archive') { loadSavedDeals(); loadAlerts(); }
+    if (user && activeTab === 'archive') { loadSavedDeals(); }
   }, [user, activeTab]);
 
   const authHeaders = () => ({
@@ -266,7 +261,7 @@ export default function FlightScout() {
     } catch (e) { setAuthError('Verbindung fehlgeschlagen'); }
   };
 
-  const logout = () => { setUser(null); setSavedDeals([]); setAlerts([]); };
+  const logout = () => { setUser(null); setSavedDeals([]); };
 
   // --- Saved Deals ---
   const loadSavedDeals = async () => {
@@ -293,33 +288,6 @@ export default function FlightScout() {
     } catch (e) { console.error('Delete deal error:', e); }
   };
 
-  // --- Alerts ---
-  const loadAlerts = async () => {
-    try {
-      const res = await fetch(`${API_URL}/alerts`, { headers: authHeaders() });
-      const data = await res.json();
-      if (res.ok) setAlerts(data.alerts || []);
-    } catch (e) { console.error('Load alerts error:', e); }
-  };
-
-  const createAlert = async () => {
-    if (!alertCity || !alertChatId) return;
-    try {
-      await fetch(`${API_URL}/alerts`, {
-        method: 'POST', headers: authHeaders(),
-        body: JSON.stringify({ destination_city: alertCity, max_price: alertMaxPrice, telegram_chat_id: alertChatId }),
-      });
-      setAlertCity('');
-      loadAlerts();
-    } catch (e) { console.error('Create alert error:', e); }
-  };
-
-  const deleteAlert = async (alertId) => {
-    try {
-      await fetch(`${API_URL}/alerts/${alertId}`, { method: 'DELETE', headers: authHeaders() });
-      setAlerts(prev => prev.filter(a => a.id !== alertId));
-    } catch (e) { console.error('Delete alert error:', e); }
-  };
 
   // --- Favorites ---
   const toggleFavorite = (city) => {
@@ -1068,39 +1036,6 @@ export default function FlightScout() {
               )}
             </div>
 
-            <div className="glass" style={{ padding: '2rem' }}>
-              <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem' }}>Preis-Alerts (Telegram)</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted, fontSize: '0.875rem' }}>Stadt</label>
-                  <input type="text" value={alertCity} onChange={(e) => setAlertCity(e.target.value)} placeholder="z.B. London" className="input-field" />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted, fontSize: '0.875rem' }}>Max. Preis (€)</label>
-                  <input type="number" value={alertMaxPrice} onChange={(e) => setAlertMaxPrice(parseInt(e.target.value) || 50)} className="input-field" />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted, fontSize: '0.875rem' }}>Telegram Chat ID</label>
-                  <input type="text" value={alertChatId} onChange={(e) => setAlertChatId(e.target.value)} placeholder="z.B. 123456789" className="input-field" />
-                </div>
-              </div>
-              <button className="btn-primary" onClick={createAlert} disabled={!alertCity || !alertChatId} style={{ width: '100%', padding: '0.75rem', fontSize: '1rem' }}>Alert erstellen</button>
-
-              {alerts.length > 0 && (
-                <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {alerts.map((alert) => (
-                    <div key={alert.id} className="result-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <span style={{ fontWeight: 600 }}>{alert.destination_city}</span>
-                        <span style={{ marginLeft: '0.75rem', color: '#22c55e', fontFamily: 'Space Mono, monospace' }}>≤ {alert.max_price}€</span>
-                        <span style={{ marginLeft: '0.75rem', color: t.textMuted, fontSize: '0.875rem' }}>Chat: {alert.telegram_chat_id}</span>
-                      </div>
-                      <button className="delete-btn" onClick={() => deleteAlert(alert.id)}>Löschen</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         )}
 
