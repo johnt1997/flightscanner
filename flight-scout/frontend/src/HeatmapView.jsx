@@ -61,7 +61,8 @@ export default function HeatmapView({ results }) {
     const origins = new Set();
 
     results.forEach(deal => {
-      if (!deal.latitude || !deal.longitude) return;
+      if (deal.latitude == null || deal.longitude == null) return;
+      if (deal.latitude === 0 && deal.longitude === 0) return;
       const origin = deal.origin || 'Wien';
       origins.add(origin);
 

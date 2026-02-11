@@ -688,6 +688,14 @@ class SkyscannerAPI:
                 lat = coords.get('latitude', 0) or 0
                 lon = coords.get('longitude', 0) or 0
 
+                # Fallback: Koordinaten aus CITY_DATABASE wenn API keine liefert
+                if lat == 0 and lon == 0:
+                    city_name = location.get('name', '')
+                    db_entry = CITY_DATABASE.get(city_name)
+                    if db_entry:
+                        lat = db_entry["lat"]
+                        lon = db_entry["lon"]
+
                 deal = FlightDeal(
                     city=location.get('name', 'Unknown'),
                     country=country["name"],
