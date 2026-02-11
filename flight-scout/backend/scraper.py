@@ -46,6 +46,8 @@ CITY_DATABASE = {
     "Bari":       {"entity_id": "27539556", "sky_code": "bari", "country": "Italien", "lat": 41.1171, "lon": 16.8719},
     "Pisa":       {"entity_id": "27546040", "sky_code": "pisa", "country": "Italien", "lat": 43.7228, "lon": 10.4017},
     "Turin":      {"entity_id": "27547248", "sky_code": "turi", "country": "Italien", "lat": 45.0703, "lon": 7.6869},
+    "Lamezia Terme": {"entity_id": "27546311", "sky_code": "mara", "country": "Italien", "lat": 38.9684, "lon": 16.3096},
+    "Trapani":    {"entity_id": "27547239", "sky_code": "trap", "country": "Italien", "lat": 38.0174, "lon": 12.5365},
     # Spanien (verifiziert ✓)
     "Barcelona":  {"entity_id": "27548283", "sky_code": "barc", "country": "Spanien", "lat": 41.3851, "lon": 2.1734},
     "Madrid":     {"entity_id": "27544850", "sky_code": "madr", "country": "Spanien", "lat": 40.4168, "lon": -3.7038},
@@ -55,6 +57,8 @@ CITY_DATABASE = {
     "London":     {"entity_id": "27544008", "sky_code": "lond", "country": "Vereinigtes Königreich", "lat": 51.5074, "lon": -0.1278},
     "Edinburgh":  {"entity_id": "27540851", "sky_code": "edin", "country": "Vereinigtes Königreich", "lat": 55.9533, "lon": -3.1883},
     "Manchester": {"entity_id": "27544856", "sky_code": "manc", "country": "Vereinigtes Königreich", "lat": 53.4808, "lon": -2.2426},
+    "Liverpool":  {"entity_id": "27544132", "sky_code": "live", "country": "Vereinigtes Königreich", "lat": 53.4084, "lon": -2.9916},
+    "Newcastle upon Tyne": {"entity_id": "27545092", "sky_code": "newc", "country": "Vereinigtes Königreich", "lat": 54.9783, "lon": -1.6178},
     "Dublin":     {"entity_id": "27540823", "sky_code": "dubl", "country": "Irland", "lat": 53.3498, "lon": -6.2603},
     # Frankreich (verifiziert ✓)
     "Paris":      {"entity_id": "27539733", "sky_code": "pari", "country": "Frankreich", "lat": 48.8566, "lon": 2.3522},
@@ -64,6 +68,8 @@ CITY_DATABASE = {
     # Skandinavien (verifiziert ✓)
     "Kopenhagen": {"entity_id": "27539902", "sky_code": "cope", "country": "Dänemark", "lat": 55.6761, "lon": 12.5683},
     "Stockholm":  {"entity_id": "27539477", "sky_code": "stoc", "country": "Schweden", "lat": 59.3293, "lon": 18.0686},
+    "Riga":       {"entity_id": "27546172", "sky_code": "riga", "country": "Lettland", "lat": 56.9496, "lon": 24.1052},
+    "Vilnius":    {"entity_id": "27547414", "sky_code": "viln", "country": "Litauen", "lat": 54.6872, "lon": 25.2797},
     "Oslo":       {"entity_id": "27538634", "sky_code": "oslo", "country": "Norwegen", "lat": 59.9139, "lon": 10.7522},
     "Helsinki":   {"entity_id": "27542027", "sky_code": "hels", "country": "Finnland", "lat": 60.1699, "lon": 24.9384},
     # Griechenland & Türkei (verifiziert ✓)
@@ -82,16 +88,22 @@ CITY_DATABASE = {
     "Sarajevo":   {"entity_id": "27546359", "sky_code": "sara", "country": "Bosnien und Herzegowina", "lat": 43.8563, "lon": 18.4131},
     "Podgorica":  {"entity_id": "27547166", "sky_code": "podg", "country": "Montenegro", "lat": 42.4304, "lon": 19.2594},
     "Skopje":     {"entity_id": "27546371", "sky_code": "skop", "country": "Nordmazedonien", "lat": 41.9981, "lon": 21.4254},
+    "Košice":     {"entity_id": "27543810", "sky_code": "kosi", "country": "Slowakei", "lat": 48.7164, "lon": 21.2611},
     "Ljubljana":  {"entity_id": "27544078", "sky_code": "ljub", "country": "Slowenien", "lat": 46.0569, "lon": 14.5058},
     # Osteuropa (verifiziert ✓)
     "Prag":       {"entity_id": "27546033", "sky_code": "prag", "country": "Tschechische Republik", "lat": 50.0755, "lon": 14.4378},
     "Warschau":   {"entity_id": "27547454", "sky_code": "wars", "country": "Polen", "lat": 52.2297, "lon": 21.0122},
     "Krakau":     {"entity_id": "27543787", "sky_code": "krak", "country": "Polen", "lat": 50.0647, "lon": 19.9450},
+    "Danzig":     {"entity_id": "27541787", "sky_code": "gada", "country": "Polen", "lat": 54.3520, "lon": 18.6466},
+    "Breslau":    {"entity_id": "27536248", "sky_code": "wroc", "country": "Polen", "lat": 51.1079, "lon": 17.0385},
+    "Kattowitz":  {"entity_id": "27543914", "sky_code": "kato", "country": "Polen", "lat": 50.2649, "lon": 19.0238},
     # Portugal (verifiziert ✓)
     "Lissabon":   {"entity_id": "27544072", "sky_code": "lisb", "country": "Portugal", "lat": 38.7223, "lon": -9.1393},
     # Nordafrika (verifiziert ✓)
     "Marrakesch": {"entity_id": "27546125", "sky_code": "marr", "country": "Marokko", "lat": 31.6295, "lon": -7.9811},
     "Kairo":      {"entity_id": "27539681", "sky_code": "cair", "country": "Ägypten", "lat": 30.0444, "lon": 31.2357},
+    # Kaukasus
+    "Kutaissi":   {"entity_id": "27543929", "sky_code": "kuta", "country": "Georgien", "lat": 42.2679, "lon": 42.6946},
     # Sonstige
     "Reykjavik":  {"entity_id": "27543786", "sky_code": "reyk", "country": "Island", "lat": 64.1466, "lon": -21.9426},
     "Malta":      {"entity_id": "33350111", "sky_code": "mlaa", "country": "Malta", "lat": 35.8989, "lon": 14.5146},

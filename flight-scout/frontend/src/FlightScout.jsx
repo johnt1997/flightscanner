@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HeatmapView from './HeatmapView';
 import CalendarView from './CalendarView';
-const API_URL = 'http://localhost:8000';
+const API_URL = '';
 
 const AIRPORTS = {
   vie: { name: 'Wien', emoji: '🇦🇹', color: '#dc2626' },
@@ -12,15 +12,17 @@ const AIRPORTS = {
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 const CITY_DB = {
-  'Italien': ['Mailand', 'Rom', 'Bologna', 'Venedig', 'Neapel', 'Catania', 'Palermo', 'Bari', 'Pisa', 'Turin'],
+  'Italien': ['Mailand', 'Rom', 'Bologna', 'Venedig', 'Neapel', 'Catania', 'Palermo', 'Bari', 'Pisa', 'Turin', 'Lamezia Terme', 'Trapani'],
   'Spanien': ['Barcelona', 'Madrid', 'Malaga', 'Palma de Mallorca'],
-  'Vereinigtes Königreich': ['London', 'Edinburgh', 'Manchester'],
+  'Vereinigtes Königreich': ['London', 'Edinburgh', 'Manchester', 'Liverpool', 'Newcastle upon Tyne'],
   'Irland': ['Dublin'],
   'Frankreich': ['Paris'],
   'Niederlande': ['Amsterdam'],
   'Belgien': ['Brüssel'],
   'Dänemark': ['Kopenhagen'],
   'Schweden': ['Stockholm'],
+  'Lettland': ['Riga'],
+  'Litauen': ['Vilnius'],
   'Norwegen': ['Oslo'],
   'Finnland': ['Helsinki'],
   'Griechenland': ['Athen', 'Thessaloniki'],
@@ -33,13 +35,15 @@ const CITY_DB = {
   'Bosnien und Herzegowina': ['Sarajevo'],
   'Montenegro': ['Podgorica'],
   'Nordmazedonien': ['Skopje'],
+  'Slowakei': ['Košice'],
   'Slowenien': ['Ljubljana'],
   'Tschechische Republik': ['Prag'],
-  'Polen': ['Warschau', 'Krakau'],
+  'Polen': ['Warschau', 'Krakau', 'Danzig', 'Breslau', 'Kattowitz'],
   'Portugal': ['Lissabon'],
   'Marokko': ['Marrakesch'],
   'Ägypten': ['Kairo'],
   'Island': ['Reykjavik'],
+  'Georgien': ['Kutaissi'],
   'Malta': ['Malta'],
 };
 

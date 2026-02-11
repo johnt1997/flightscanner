@@ -5,7 +5,8 @@ Flight Scout API - FastAPI Backend
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from typing import Optional
@@ -605,6 +606,21 @@ def run_calendar_search(job_id: str, req: CalendarRequest):
         jobs[job_id]["progress"] = 0
 
 
+# Serve frontend static files (production build)
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="static")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Serve frontend for all non-API routes (SPA fallback)."""
+        file_path = os.path.join(FRONTEND_DIR, full_path)
+        if full_path and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
