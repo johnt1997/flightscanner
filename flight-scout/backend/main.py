@@ -235,7 +235,7 @@ def delete_alert_endpoint(alert_id: int, request: Request):
 # Rate limiting: max 3 searches per user per hour
 search_history: dict[int, list[float]] = {}  # user_id -> list of timestamps
 SEARCH_LIMIT = 3
-SEARCH_WINDOW = 3600  # 1 hour in seconds
+SEARCH_WINDOW = 1800  # 30 minutes in seconds
 ADMIN_USERS = {"john1997"}  # No rate limit for these users
 
 
