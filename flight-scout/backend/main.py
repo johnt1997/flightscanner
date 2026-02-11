@@ -14,6 +14,7 @@ import asyncio
 import uuid
 import calendar
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from scraper import SkyscannerAPI, create_pdf_report, FlightDeal, PDF_DIR, CITY_DATABASE
@@ -231,8 +232,42 @@ def delete_alert_endpoint(alert_id: int, request: Request):
 
 # --- Search Endpoints ---
 
+# Rate limiting: max 3 searches per user per hour
+search_history: dict[int, list[float]] = {}  # user_id -> list of timestamps
+SEARCH_LIMIT = 3
+SEARCH_WINDOW = 3600  # 1 hour in seconds
+ADMIN_USERS = {"john1997"}  # No rate limit for these users
+
+
+def _get_username(user_id: int) -> str | None:
+    from database import get_db
+    conn = get_db()
+    row = conn.execute("SELECT username FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    return row["username"] if row else None
+
+
 @app.post("/search", response_model=JobStatus)
-def start_search(request: SearchRequest, background_tasks: BackgroundTasks):
+def start_search(request: SearchRequest, background_tasks: BackgroundTasks, req: Request):
+    # Auth check
+    auth = req.headers.get("authorization", "")
+    token = auth.replace("Bearer ", "") if auth.startswith("Bearer ") else ""
+    user_id = verify_token(token) if token else None
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Bitte zuerst anmelden.")
+
+    # Rate limit check (skip for admins)
+    username = _get_username(user_id)
+    if username not in ADMIN_USERS:
+        now = time.time()
+        user_searches = search_history.get(user_id, [])
+        user_searches = [t for t in user_searches if now - t < SEARCH_WINDOW]
+        if len(user_searches) >= SEARCH_LIMIT:
+            wait_minutes = int((SEARCH_WINDOW - (now - user_searches[0])) / 60) + 1
+            raise HTTPException(status_code=429, detail=f"Maximal {SEARCH_LIMIT} Suchen pro Stunde. Warte noch {wait_minutes} Min.")
+        user_searches.append(now)
+        search_history[user_id] = user_searches
+
     job_id = str(uuid.uuid4())[:8]
 
     jobs[job_id] = {

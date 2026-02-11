@@ -484,7 +484,7 @@ export default function FlightScout() {
     try {
       const res = await fetch(`${API_URL}/search`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
         body: JSON.stringify({
           airports: selectedAirports, start_date: startDate, end_date: endDate,
           start_weekday: startWeekday, durations, adults, max_price: maxPrice,
@@ -494,6 +494,12 @@ export default function FlightScout() {
           selected_cities: searchMode === 'cities' ? selectedCities : [],
         }),
       });
+      if (res.status === 429) {
+        setIsSearching(false);
+        const err = await res.json();
+        alert(err.detail || 'Zu viele Suchen. Bitte warte etwas.');
+        return;
+      }
       const data = await res.json();
       setJobId(data.job_id);
       setJobStatus(data);
