@@ -9,7 +9,9 @@ import base64
 import time
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "flight_scout.db")
+# Use /data volume on Railway (persists across deploys), fallback to local for dev
+_data_dir = "/data" if os.path.isdir("/data") else os.path.dirname(__file__)
+DB_PATH = os.path.join(_data_dir, "flight_scout.db")
 TOKEN_SECRET = os.environ.get("FLIGHT_SCOUT_SECRET", "flight-scout-default-secret-key")
 
 
