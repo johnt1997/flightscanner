@@ -578,13 +578,25 @@ export default function FlightScout() {
         .progress-fill { animation: progressPulse 2s ease-in-out infinite; }
         .date-pill { padding: 0.35rem 0.7rem; border-radius: 8px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
         .date-pill:hover { transform: scale(1.05); }
+        .save-btn, .share-btn { flex-shrink: 0; min-width: 36px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; }
+        @media (max-width: 640px) {
+          .header-controls { position: static !important; justify-content: center !important; margin-top: 0.75rem; flex-wrap: wrap; }
+          .header-title { font-size: 2rem !important; }
+          .header-subtitle { font-size: 0.95rem !important; }
+          .main-container { padding: 1rem !important; }
+          .deal-row { padding: 0.75rem 1rem !important; gap: 0.5rem; }
+          .city-header { padding: 1rem !important; }
+          .btn-primary { padding: 0.75rem 1.25rem !important; font-size: 1rem !important; }
+          .tab-btn { padding: 0.5rem 0.875rem !important; font-size: 0.875rem !important; }
+        }
       `}</style>
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <div className="main-container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '3rem', position: 'relative' }}>
-          <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {/* Theme Toggle */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem', position: 'relative' }}>
+          <h1 className="glow-text header-title" style={{ fontSize: '3.5rem', fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>Flight Scout</h1>
+          <p className="header-subtitle" style={{ fontSize: '1.25rem', color: t.textMuted, marginTop: '0.5rem' }}>Finde die günstigsten Wochenend-Flüge</p>
+          <div className="header-controls" style={{ position: 'absolute', right: 0, top: 0, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button onClick={() => setTheme(th => th === 'dark' ? 'light' : 'dark')} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', color: t.textMuted, fontSize: '1rem' }} title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}>
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
@@ -597,9 +609,6 @@ export default function FlightScout() {
               <button onClick={() => setShowAuth(true)} style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: '8px', padding: '0.4rem 0.75rem', color: '#a5b4fc', cursor: 'pointer', fontSize: '0.875rem' }}>Anmelden</button>
             )}
           </div>
-
-          <h1 style={{ fontSize: '3.5rem', fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }} className="glow-text">Flight Scout</h1>
-          <p style={{ fontSize: '1.25rem', color: t.textMuted, marginTop: '0.5rem' }}>Finde die günstigsten Wochenend-Flüge</p>
         </div>
 
         {/* Tabs */}
