@@ -103,6 +103,33 @@ export default function FlightScout() {
   const [expandedCity, setExpandedCity] = useState(null);
   const [expandedAlts, setExpandedAlts] = useState(new Set());
 
+  // Weather cache
+  const [weatherCache, setWeatherCache] = useState({});
+
+  const getWeatherIcon = (code) => {
+    if (code <= 1) return '☀️';
+    if (code <= 3) return '⛅';
+    if (code <= 48) return '☁️';
+    if (code <= 67) return '🌧️';
+    if (code <= 77) return '❄️';
+    if (code <= 82) return '🌧️';
+    if (code <= 86) return '❄️';
+    return '⛈️';
+  };
+
+  const fetchWeather = async (lat, lon, startDate, endDate) => {
+    const key = `${lat.toFixed(1)}_${lon.toFixed(1)}_${startDate}`;
+    if (weatherCache[key] !== undefined) return;
+    setWeatherCache(prev => ({ ...prev, [key]: null })); // mark loading
+    try {
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode&start_date=${startDate}&end_date=${endDate}&timezone=auto`);
+      const data = await res.json();
+      const codes = data?.daily?.weathercode || [];
+      const worst = codes.length ? Math.max(...codes) : null;
+      setWeatherCache(prev => ({ ...prev, [key]: worst }));
+    } catch { setWeatherCache(prev => ({ ...prev, [key]: -1 })); }
+  };
+
   // Favorites (localStorage)
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('flight_scout_favorites');
@@ -902,7 +929,16 @@ export default function FlightScout() {
                   return (
                     <div key={group.city} className="city-group" style={{ background: t.cardBg, border: `1px solid ${group.isFavorite ? 'rgba(234, 179, 8, 0.3)' : t.cardBorder}`, borderRadius: '20px' }}>
                       {/* City Header */}
-                      <div className="city-header" onClick={() => setExpandedCity(isExpanded ? null : group.city)}>
+                      <div className="city-header" onClick={() => {
+                        setExpandedCity(isExpanded ? null : group.city);
+                        if (!isExpanded) {
+                          group.deals.forEach(d => {
+                            if (d.latitude && d.longitude && d.departure_date && d.return_date) {
+                              fetchWeather(d.latitude, d.longitude, d.departure_date, d.return_date);
+                            }
+                          });
+                        }
+                      }}>
                         {/* Spalte 1: Stern */}
                         <span className="fav-star" onClick={(e) => { e.stopPropagation(); toggleFavorite(group.city); }}>
                           {group.isFavorite ? '⭐' : '☆'}
@@ -951,6 +987,7 @@ export default function FlightScout() {
                                     </span>
                                     <span style={{ color: t.textMuted, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                                       {formatDateFull(deal.departure_date)} – {formatDateFull(deal.return_date)}
+                                      {(() => { const wk = `${deal.latitude?.toFixed(1)}_${deal.longitude?.toFixed(1)}_${deal.departure_date}`; const wc = weatherCache[wk]; return wc != null && wc >= 0 ? ` ${getWeatherIcon(wc)}` : ''; })()}
                                     </span>
                                     {deal.flight_time && deal.flight_time !== '??:??' && (
                                       <span style={{ color: deal.early_departure ? '#f59e0b' : t.textDim, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
