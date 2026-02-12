@@ -23,6 +23,7 @@ from database import (
     create_user, authenticate_user, create_token, verify_token,
     save_deal, get_user_deals, delete_deal,
     create_deal_alert, get_user_deal_alerts, delete_deal_alert,
+    save_search, get_user_searches, get_saved_search, update_search_results, delete_saved_search,
     log_search, get_all_users, get_search_log,
 )
 from alerts import start_alert_scheduler
@@ -231,6 +232,51 @@ def delete_deal_alert_endpoint(alert_id: int, request: Request):
     if not delete_deal_alert(user_id, alert_id):
         raise HTTPException(status_code=404, detail="Alert nicht gefunden")
     return {"message": "Alert gelöscht"}
+
+
+# --- Saved Search Endpoints ---
+
+class SaveSearchRequest(BaseModel):
+    name: str
+    params: dict
+    results: list
+
+
+@app.post("/searches/save")
+def save_search_endpoint(req: SaveSearchRequest, request: Request):
+    import json
+    user_id = get_user_id(request)
+    search_id = save_search(user_id, req.name, json.dumps(req.params), json.dumps(req.results))
+    if search_id == -1:
+        raise HTTPException(status_code=400, detail="Maximal 5 Suchen erlaubt")
+    return {"id": search_id, "message": "Suche gespeichert"}
+
+
+@app.get("/searches")
+def get_searches(request: Request):
+    user_id = get_user_id(request)
+    searches = get_user_searches(user_id)
+    return {"searches": searches}
+
+
+@app.get("/searches/{search_id}")
+def get_search_detail(search_id: int, request: Request):
+    import json
+    user_id = get_user_id(request)
+    search = get_saved_search(user_id, search_id)
+    if not search:
+        raise HTTPException(status_code=404, detail="Suche nicht gefunden")
+    search["params"] = json.loads(search["params"])
+    search["results"] = json.loads(search["results"]) if search["results"] else []
+    return search
+
+
+@app.delete("/searches/{search_id}")
+def delete_search_endpoint(search_id: int, request: Request):
+    user_id = get_user_id(request)
+    if not delete_saved_search(user_id, search_id):
+        raise HTTPException(status_code=404, detail="Suche nicht gefunden")
+    return {"message": "Suche gelöscht"}
 
 
 # --- Search Endpoints ---

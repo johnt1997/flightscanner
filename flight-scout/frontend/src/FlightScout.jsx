@@ -174,6 +174,12 @@ export default function FlightScout() {
   const [alertChatId, setAlertChatId] = useState('');
   const [alertError, setAlertError] = useState('');
 
+  // Saved Searches State
+  const [savedSearches, setSavedSearches] = useState([]);
+  const [showSaveSearch, setShowSaveSearch] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState('');
+  const [saveSearchError, setSaveSearchError] = useState('');
+
 
   // Share toast
   const [showShareToast, setShowShareToast] = useState(false);
@@ -286,7 +292,7 @@ export default function FlightScout() {
   }, [user]);
 
   useEffect(() => {
-    if (user && activeTab === 'archive') { loadSavedDeals(); loadDealAlerts(); }
+    if (user && activeTab === 'archive') { loadSavedDeals(); loadDealAlerts(); loadSavedSearches(); }
     if (user && activeTab === 'admin' && user.username === 'john1997') { loadAdmin(); }
   }, [user, activeTab]);
 
@@ -370,6 +376,67 @@ export default function FlightScout() {
       await fetch(`${API_URL}/deal-alerts/${alertId}`, { method: 'DELETE', headers: authHeaders() });
       setDealAlerts(prev => prev.filter(a => a.id !== alertId));
     } catch (e) { console.error('Delete alert error:', e); }
+  };
+
+  // --- Saved Searches ---
+  const loadSavedSearches = async () => {
+    try {
+      const res = await fetch(`${API_URL}/searches`, { headers: authHeaders() });
+      const data = await res.json();
+      if (res.ok) setSavedSearches(data.searches || []);
+    } catch (e) { console.error('Load searches error:', e); }
+  };
+
+  const saveCurrentSearch = async () => {
+    setSaveSearchError('');
+    if (!saveSearchName.trim()) { setSaveSearchError('Name eingeben'); return; }
+    try {
+      const params = {
+        airports: selectedAirports, start_date: startDate, end_date: endDate,
+        start_weekday: startWeekday, durations, adults, max_price: maxPrice,
+        min_departure_hour: minDepartureHour, max_return_hour: maxReturnHour,
+        blacklist_countries: blacklistCountries, search_mode: searchMode,
+        selected_cities: searchMode === 'cities' ? selectedCities : [],
+      };
+      const res = await fetch(`${API_URL}/searches/save`, {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ name: saveSearchName.trim(), params, results }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setSaveSearchError(data.detail || 'Fehler'); return; }
+      setSaveSearchName('');
+      setShowSaveSearch(false);
+      loadSavedSearches();
+    } catch (e) { setSaveSearchError('Netzwerkfehler'); }
+  };
+
+  const loadSearch = async (searchId) => {
+    try {
+      const res = await fetch(`${API_URL}/searches/${searchId}`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) return;
+      const p = data.params;
+      setSelectedAirports(p.airports || ['vie']);
+      setStartDate(p.start_date || startDate);
+      setEndDate(p.end_date || endDate);
+      setStartWeekday(p.start_weekday ?? 4);
+      setDurations(p.durations || [2]);
+      setAdults(p.adults || 1);
+      setMaxPrice(p.max_price || 70);
+      setMinDepartureHour(p.min_departure_hour ?? 14);
+      setSearchMode(p.search_mode || 'everywhere');
+      setSelectedCities(p.selected_cities || []);
+      setBlacklistCountries(p.blacklist_countries || []);
+      setResults(data.results || []);
+      setActiveTab('search');
+    } catch (e) { console.error('Load search error:', e); }
+  };
+
+  const deleteSavedSearch = async (searchId) => {
+    try {
+      await fetch(`${API_URL}/searches/${searchId}`, { method: 'DELETE', headers: authHeaders() });
+      setSavedSearches(prev => prev.filter(s => s.id !== searchId));
+    } catch (e) { console.error('Delete search error:', e); }
   };
 
   // --- Admin ---
@@ -982,11 +1049,26 @@ export default function FlightScout() {
                   {isSearching && <span style={{ fontSize: '0.9rem', color: t.textMuted, fontWeight: 400, marginLeft: '0.75rem' }}>live...</span>}
                 </h2>
                 {!isSearching && (
-                  <button onClick={downloadPdf} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.75rem 1.25rem', borderRadius: '12px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>
-                    PDF Download
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    {user && !showSaveSearch && (
+                      <button onClick={() => setShowSaveSearch(true)} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.75rem 1.25rem', borderRadius: '12px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>
+                        Speichern
+                      </button>
+                    )}
+                    {showSaveSearch && (
+                      <>
+                        <input type="text" value={saveSearchName} onChange={e => setSaveSearchName(e.target.value)} placeholder="Name..." onKeyDown={e => e.key === 'Enter' && saveCurrentSearch()}
+                          style={{ padding: '0.5rem 0.75rem', background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: '8px', color: t.text, fontSize: '0.875rem', width: '160px' }} />
+                        <button onClick={saveCurrentSearch} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.5rem 1rem', borderRadius: '8px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>OK</button>
+                      </>
+                    )}
+                    <button onClick={downloadPdf} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.75rem 1.25rem', borderRadius: '12px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>
+                      PDF
+                    </button>
+                  </div>
                 )}
               </div>
+              {saveSearchError && <p style={{ color: '#ef4444', fontSize: '0.875rem', marginBottom: '1rem' }}>{saveSearchError}</p>}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {groupedResults.map((group) => {
@@ -1152,6 +1234,32 @@ export default function FlightScout() {
                 </div>
               )}
             </div>
+
+            {/* Saved Searches */}
+            {savedSearches.length > 0 && (
+              <div className="glass" style={{ padding: '2rem', marginBottom: '2rem' }}>
+                <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem' }}>Gespeicherte Suchen</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {savedSearches.map(s => (
+                    <div key={s.id} className="result-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <div style={{ flex: 1, minWidth: '150px' }}>
+                        <div style={{ fontWeight: 600 }}>{s.name}</div>
+                        <div style={{ fontSize: '0.8rem', color: t.textMuted }}>
+                          {s.airports?.join(', ').toUpperCase()} · {s.search_mode === 'cities' ? 'Städte' : 'Everywhere'} · {s.result_count} Deals
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: t.textDim }}>
+                          {s.updated_at ? new Date(s.updated_at + 'Z').toLocaleString('de-AT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button onClick={() => loadSearch(s.id)} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.4rem 0.75rem', borderRadius: '8px', color: t.text, cursor: 'pointer', fontSize: '0.8rem' }}>Laden</button>
+                        <button className="delete-btn" onClick={() => deleteSavedSearch(s.id)}>Löschen</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Deal Alerts */}
             <div className="glass" style={{ padding: '2rem' }}>

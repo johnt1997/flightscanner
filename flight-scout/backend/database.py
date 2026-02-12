@@ -79,6 +79,17 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS saved_searches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            params TEXT NOT NULL,
+            results TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
         CREATE TABLE IF NOT EXISTS search_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -380,6 +391,78 @@ def get_search_log(limit: int = 50) -> list[dict]:
     """, (limit,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# --- Saved Searches ---
+
+def save_search(user_id: int, name: str, params: str, results: str) -> int:
+    import json
+    conn = get_db()
+    count = conn.execute("SELECT COUNT(*) FROM saved_searches WHERE user_id = ?", (user_id,)).fetchone()[0]
+    if count >= 5:
+        conn.close()
+        return -1
+    cursor = conn.execute(
+        "INSERT INTO saved_searches (user_id, name, params, results) VALUES (?, ?, ?, ?)",
+        (user_id, name, params, results)
+    )
+    conn.commit()
+    search_id = cursor.lastrowid
+    conn.close()
+    return search_id
+
+
+def get_user_searches(user_id: int) -> list[dict]:
+    import json
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, name, params, results, created_at, updated_at FROM saved_searches WHERE user_id = ? ORDER BY updated_at DESC",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        p = json.loads(d["params"])
+        d["airports"] = p.get("airports", [])
+        d["search_mode"] = p.get("search_mode", "everywhere")
+        d["start_date"] = p.get("start_date", "")
+        d["end_date"] = p.get("end_date", "")
+        d["result_count"] = len(json.loads(d["results"])) if d.get("results") else 0
+        del d["params"]
+        del d["results"]
+        result.append(d)
+    return result
+
+
+def get_saved_search(user_id: int, search_id: int) -> dict | None:
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM saved_searches WHERE id = ? AND user_id = ?", (search_id, user_id)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_search_results(user_id: int, search_id: int, results: str) -> bool:
+    conn = get_db()
+    cursor = conn.execute(
+        "UPDATE saved_searches SET results = ?, updated_at = datetime('now') WHERE id = ? AND user_id = ?",
+        (results, search_id, user_id)
+    )
+    conn.commit()
+    updated = cursor.rowcount > 0
+    conn.close()
+    return updated
+
+
+def delete_saved_search(user_id: int, search_id: int) -> bool:
+    conn = get_db()
+    cursor = conn.execute("DELETE FROM saved_searches WHERE id = ? AND user_id = ?", (search_id, user_id))
+    conn.commit()
+    deleted = cursor.rowcount > 0
+    conn.close()
+    return deleted
 
 
 # Init DB on import
