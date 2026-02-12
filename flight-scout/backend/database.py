@@ -167,6 +167,13 @@ def authenticate_user(username: str, password: str) -> dict | None:
 
 def save_deal(user_id: int, deal: dict) -> int:
     conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM saved_deals WHERE user_id = ? AND city = ? AND departure_date = ? AND return_date = ?",
+        (user_id, deal["city"], deal.get("departure_date"), deal.get("return_date"))
+    ).fetchone()
+    if existing:
+        conn.close()
+        return existing["id"]
     cursor = conn.execute(
         """INSERT INTO saved_deals
            (user_id, city, country, price, departure_date, return_date, flight_time, is_direct, url, origin, latitude, longitude)
