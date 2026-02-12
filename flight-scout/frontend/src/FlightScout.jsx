@@ -167,6 +167,13 @@ export default function FlightScout() {
   const [savedDeals, setSavedDeals] = useState([]);
   const [savingDealIndex, setSavingDealIndex] = useState(null);
 
+  // Deal Alert State
+  const [dealAlerts, setDealAlerts] = useState([]);
+  const [alertAirport, setAlertAirport] = useState('vie');
+  const [alertMaxPrice, setAlertMaxPrice] = useState('50');
+  const [alertChatId, setAlertChatId] = useState('');
+  const [alertError, setAlertError] = useState('');
+
 
   // Share toast
   const [showShareToast, setShowShareToast] = useState(false);
@@ -279,7 +286,7 @@ export default function FlightScout() {
   }, [user]);
 
   useEffect(() => {
-    if (user && activeTab === 'archive') { loadSavedDeals(); }
+    if (user && activeTab === 'archive') { loadSavedDeals(); loadDealAlerts(); }
     if (user && activeTab === 'admin' && user.username === 'john1997') { loadAdmin(); }
   }, [user, activeTab]);
 
@@ -334,6 +341,36 @@ export default function FlightScout() {
     } catch (e) { console.error('Delete deal error:', e); }
   };
 
+  // --- Deal Alerts ---
+  const loadDealAlerts = async () => {
+    try {
+      const res = await fetch(`${API_URL}/deal-alerts`, { headers: authHeaders() });
+      const data = await res.json();
+      if (res.ok) setDealAlerts(data.alerts || []);
+    } catch (e) { console.error('Load deal alerts error:', e); }
+  };
+
+  const createDealAlert = async () => {
+    setAlertError('');
+    if (!alertChatId.trim()) { setAlertError('Telegram Chat-ID eingeben'); return; }
+    try {
+      const res = await fetch(`${API_URL}/deal-alerts`, {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ airport: alertAirport, max_price: parseFloat(alertMaxPrice) || 50, telegram_chat_id: alertChatId.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAlertError(data.detail || 'Fehler'); return; }
+      setAlertChatId('');
+      loadDealAlerts();
+    } catch (e) { setAlertError('Netzwerkfehler'); }
+  };
+
+  const deleteDealAlert = async (alertId) => {
+    try {
+      await fetch(`${API_URL}/deal-alerts/${alertId}`, { method: 'DELETE', headers: authHeaders() });
+      setDealAlerts(prev => prev.filter(a => a.id !== alertId));
+    } catch (e) { console.error('Delete alert error:', e); }
+  };
 
   // --- Admin ---
   const loadAdmin = async () => {
@@ -1098,6 +1135,57 @@ export default function FlightScout() {
                         <span className="price-tag" style={{ fontSize: '1.25rem' }}>{deal.price.toFixed(0)}€</span>
                         <button className="delete-btn" onClick={() => deleteSavedDeal(deal.id)}>Löschen</button>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Deal Alerts */}
+            <div className="glass" style={{ padding: '2rem' }}>
+              <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>Telegram Alerts</h2>
+              <p style={{ color: t.textMuted, margin: '0 0 1.5rem 0', fontSize: '0.875rem' }}>
+                Erhalte täglich Benachrichtigungen über günstige Wochenend-Flüge per Telegram. Max. 2 Alerts.
+              </p>
+
+              {/* Create Alert Form */}
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontSize: '0.75rem', color: t.textMuted }}>Flughafen</label>
+                  <select value={alertAirport} onChange={e => setAlertAirport(e.target.value)}
+                    style={{ padding: '0.5rem', background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: '0.5rem', color: t.text, fontSize: '0.875rem' }}>
+                    <option value="vie">Wien</option>
+                    <option value="bts">Bratislava</option>
+                    <option value="bud">Budapest</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontSize: '0.75rem', color: t.textMuted }}>Max. Preis</label>
+                  <input type="text" inputMode="numeric" value={alertMaxPrice} onChange={e => setAlertMaxPrice(e.target.value.replace(/[^0-9]/g, ''))}
+                    style={{ padding: '0.5rem', background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: '0.5rem', color: t.text, width: '5rem', fontSize: '0.875rem' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '140px' }}>
+                  <label style={{ fontSize: '0.75rem', color: t.textMuted }}>Telegram Chat-ID</label>
+                  <input type="text" value={alertChatId} onChange={e => setAlertChatId(e.target.value)} placeholder="z.B. 123456789"
+                    style={{ padding: '0.5rem', background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: '0.5rem', color: t.text, fontSize: '0.875rem' }} />
+                </div>
+                <button onClick={createDealAlert} className="btn-primary" style={{ padding: '0.5rem 1.25rem', whiteSpace: 'nowrap' }}>
+                  Alert erstellen
+                </button>
+              </div>
+              {alertError && <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: '0 0 1rem 0' }}>{alertError}</p>}
+
+              {/* Alert List */}
+              {dealAlerts.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+                  {dealAlerts.map(alert => (
+                    <div key={alert.id} className="result-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ fontWeight: 600 }}>{alert.airport.toUpperCase()}</span>
+                        <span style={{ color: t.textMuted, marginLeft: '0.75rem' }}>unter {alert.max_price}€</span>
+                        <span style={{ color: t.textDim, marginLeft: '0.75rem', fontSize: '0.8rem' }}>Chat: {alert.telegram_chat_id}</span>
+                      </div>
+                      <button className="delete-btn" onClick={() => deleteDealAlert(alert.id)}>Löschen</button>
                     </div>
                   ))}
                 </div>

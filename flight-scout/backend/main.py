@@ -22,10 +22,10 @@ import os
 from database import (
     create_user, authenticate_user, create_token, verify_token,
     save_deal, get_user_deals, delete_deal,
-    create_alert, get_user_alerts, delete_alert,
+    create_deal_alert, get_user_deal_alerts, delete_deal_alert,
     log_search, get_all_users, get_search_log,
 )
-from alerts import check_alerts
+from alerts import start_alert_scheduler
 
 app = FastAPI(title="Flight Scout API", version="1.0.0")
 
@@ -97,12 +97,6 @@ class SaveDealRequest(BaseModel):
     origin: str = ""
     latitude: float = 0.0
     longitude: float = 0.0
-
-
-class AlertRequest(BaseModel):
-    destination_city: str
-    max_price: float
-    telegram_chat_id: str
 
 
 class CalendarRequest(BaseModel):
@@ -207,26 +201,34 @@ def delete_deal_endpoint(deal_id: int, request: Request):
     return {"message": "Deal gelöscht"}
 
 
-# --- Alert Endpoints ---
+# --- Deal Alert Endpoints ---
 
-@app.post("/alerts")
-def create_alert_endpoint(alert: AlertRequest, request: Request):
+class DealAlertRequest(BaseModel):
+    airport: str = "vie"
+    max_price: float = 50
+    telegram_chat_id: str
+
+
+@app.post("/deal-alerts")
+def create_deal_alert_endpoint(req: DealAlertRequest, request: Request):
     user_id = get_user_id(request)
-    alert_id = create_alert(user_id, alert.destination_city, alert.max_price, alert.telegram_chat_id)
+    alert_id = create_deal_alert(user_id, req.airport, req.max_price, req.telegram_chat_id)
+    if alert_id == -1:
+        raise HTTPException(status_code=400, detail="Maximal 2 Alerts erlaubt")
     return {"id": alert_id, "message": "Alert erstellt"}
 
 
-@app.get("/alerts")
-def get_alerts(request: Request):
+@app.get("/deal-alerts")
+def get_deal_alerts(request: Request):
     user_id = get_user_id(request)
-    alerts = get_user_alerts(user_id)
+    alerts = get_user_deal_alerts(user_id)
     return {"alerts": alerts}
 
 
-@app.delete("/alerts/{alert_id}")
-def delete_alert_endpoint(alert_id: int, request: Request):
+@app.delete("/deal-alerts/{alert_id}")
+def delete_deal_alert_endpoint(alert_id: int, request: Request):
     user_id = get_user_id(request)
-    if not delete_alert(user_id, alert_id):
+    if not delete_deal_alert(user_id, alert_id):
         raise HTTPException(status_code=404, detail="Alert nicht gefunden")
     return {"message": "Alert gelöscht"}
 
@@ -533,11 +535,6 @@ def run_search(job_id: str, request: SearchRequest):
         job["results"] = results
         job["pdf_path"] = pdf_filename
 
-        # Check Telegram alerts
-        try:
-            check_alerts(results)
-        except Exception as e:
-            print(f"Alert check error: {e}")
 
     except Exception as e:
         jobs[job_id]["status"] = "failed"
@@ -690,6 +687,11 @@ if os.path.isdir(FRONTEND_DIR):
         if full_path and os.path.isfile(file_path):
             return FileResponse(file_path)
         return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+
+@app.on_event("startup")
+def on_startup():
+    start_alert_scheduler()
 
 
 if __name__ == "__main__":

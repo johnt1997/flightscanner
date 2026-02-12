@@ -62,6 +62,17 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
 
+        CREATE TABLE IF NOT EXISTS deal_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            airport TEXT NOT NULL DEFAULT 'vie',
+            max_price REAL NOT NULL DEFAULT 50,
+            telegram_chat_id TEXT NOT NULL,
+            active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
         CREATE TABLE IF NOT EXISTS search_cache (
             key TEXT PRIMARY KEY,
             data TEXT NOT NULL,
@@ -230,6 +241,51 @@ def delete_alert(user_id: int, alert_id: int) -> bool:
     cursor = conn.execute(
         "DELETE FROM price_alerts WHERE id = ? AND user_id = ?", (alert_id, user_id)
     )
+    conn.commit()
+    deleted = cursor.rowcount > 0
+    conn.close()
+    return deleted
+
+
+# --- Deal Alerts ---
+
+def create_deal_alert(user_id: int, airport: str, max_price: float, telegram_chat_id: str) -> int:
+    conn = get_db()
+    # Max 2 alerts per user
+    count = conn.execute("SELECT COUNT(*) as c FROM deal_alerts WHERE user_id = ? AND active = 1", (user_id,)).fetchone()["c"]
+    if count >= 2:
+        conn.close()
+        return -1
+    cursor = conn.execute(
+        "INSERT INTO deal_alerts (user_id, airport, max_price, telegram_chat_id) VALUES (?, ?, ?, ?)",
+        (user_id, airport, max_price, telegram_chat_id)
+    )
+    conn.commit()
+    alert_id = cursor.lastrowid
+    conn.close()
+    return alert_id
+
+
+def get_user_deal_alerts(user_id: int) -> list[dict]:
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM deal_alerts WHERE user_id = ? AND active = 1 ORDER BY created_at DESC",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_all_active_deal_alerts() -> list[dict]:
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM deal_alerts WHERE active = 1").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_deal_alert(user_id: int, alert_id: int) -> bool:
+    conn = get_db()
+    cursor = conn.execute("DELETE FROM deal_alerts WHERE id = ? AND user_id = ?", (alert_id, user_id))
     conn.commit()
     deleted = cursor.rowcount > 0
     conn.close()
