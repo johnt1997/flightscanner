@@ -504,8 +504,16 @@ export default function FlightScout() {
     setBlacklistCountries(prev => prev.includes(country) ? prev.filter(c => c !== country) : [...prev, country]);
   };
 
+  const isAdmin = user?.username === 'john1997';
+  const MAX_CITIES = isAdmin ? 999 : 3;
+  const MAX_DURATIONS = isAdmin ? 999 : 2;
+
   const toggleCity = (city) => {
-    setSelectedCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]);
+    setSelectedCities(prev => {
+      if (prev.includes(city)) return prev.filter(c => c !== city);
+      if (prev.length >= MAX_CITIES) return prev;
+      return [...prev, city];
+    });
   };
 
   const selectCountryCities = (country) => {
@@ -514,16 +522,20 @@ export default function FlightScout() {
     if (allSelected) {
       setSelectedCities(prev => prev.filter(c => !countryCities.includes(c)));
     } else {
-      setSelectedCities(prev => [...new Set([...prev, ...countryCities])]);
+      setSelectedCities(prev => {
+        const merged = [...new Set([...prev, ...countryCities])];
+        return merged.slice(0, MAX_CITIES);
+      });
     }
   };
 
   const toggleDuration = (dur) => {
     setDurations(prev => {
       if (prev.includes(dur)) {
-        if (prev.length === 1) return prev; // must keep at least one
+        if (prev.length === 1) return prev;
         return prev.filter(d => d !== dur);
       }
+      if (prev.length >= MAX_DURATIONS) return prev;
       return [...prev, dur].sort((a, b) => a - b);
     });
   };
