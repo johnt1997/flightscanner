@@ -117,16 +117,32 @@ export default function FlightScout() {
     return '⛈️';
   };
 
+  const getWeatherLabel = (code) => {
+    if (code <= 0) return 'Klar';
+    if (code <= 1) return 'Überwiegend klar';
+    if (code <= 2) return 'Teilweise bewölkt';
+    if (code <= 3) return 'Bewölkt';
+    if (code <= 48) return 'Nebelig';
+    if (code <= 55) return 'Nieselregen';
+    if (code <= 67) return 'Regen';
+    if (code <= 77) return 'Schnee';
+    if (code <= 82) return 'Regenschauer';
+    if (code <= 86) return 'Schneeschauer';
+    return 'Gewitter';
+  };
+
   const fetchWeather = async (lat, lon, startDate, endDate) => {
     const key = `${lat.toFixed(1)}_${lon.toFixed(1)}_${startDate}`;
     if (weatherCache[key] !== undefined) return;
-    setWeatherCache(prev => ({ ...prev, [key]: null })); // mark loading
+    setWeatherCache(prev => ({ ...prev, [key]: null }));
     try {
-      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode&start_date=${startDate}&end_date=${endDate}&timezone=auto`);
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max&start_date=${startDate}&end_date=${endDate}&timezone=auto`);
       const data = await res.json();
       const codes = data?.daily?.weathercode || [];
+      const temps = data?.daily?.temperature_2m_max || [];
       const worst = codes.length ? Math.max(...codes) : null;
-      setWeatherCache(prev => ({ ...prev, [key]: worst }));
+      const avgTemp = temps.length ? Math.round(temps.reduce((a, b) => a + b, 0) / temps.length) : null;
+      setWeatherCache(prev => ({ ...prev, [key]: { code: worst, temp: avgTemp } }));
     } catch { setWeatherCache(prev => ({ ...prev, [key]: -1 })); }
   };
 
@@ -987,7 +1003,7 @@ export default function FlightScout() {
                                     </span>
                                     <span style={{ color: t.textMuted, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                                       {formatDateFull(deal.departure_date)} – {formatDateFull(deal.return_date)}
-                                      {(() => { const wk = `${deal.latitude?.toFixed(1)}_${deal.longitude?.toFixed(1)}_${deal.departure_date}`; const wc = weatherCache[wk]; return wc != null && wc >= 0 ? ` ${getWeatherIcon(wc)}` : ''; })()}
+                                      {(() => { const wk = `${deal.latitude?.toFixed(1)}_${deal.longitude?.toFixed(1)}_${deal.departure_date}`; const w = weatherCache[wk]; return w && w.code != null ? <span title={`${w.temp != null ? w.temp + '°C, ' : ''}${getWeatherLabel(w.code)}`} style={{ cursor: 'default' }}> {getWeatherIcon(w.code)}</span> : ''; })()}
                                     </span>
                                     {deal.flight_time && deal.flight_time !== '??:??' && (
                                       <span style={{ color: deal.early_departure ? '#f59e0b' : t.textDim, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
