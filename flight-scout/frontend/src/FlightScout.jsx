@@ -604,7 +604,7 @@ export default function FlightScout() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          {[['search', 'Suche'], ['heatmap', 'Heatmap'], ['calendar', 'Kalender'], ['archive', 'Archiv'], ...(user && user.username === 'john1997' ? [['admin', 'Admin']] : [])].map(([key, label]) => (
+          {[['search', 'Suche'], ['heatmap', 'Heatmap'], ['calendar', 'Kalender'], ['archive', 'Archiv'], ['about', 'About'], ...(user && user.username === 'john1997' ? [['admin', 'Admin']] : [])].map(([key, label]) => (
             <button key={key} onClick={() => { if ((key === 'archive' || key === 'admin') && !user) { setShowAuth(true); return; } setActiveTab(key); }}
               className="tab-btn" style={{ background: activeTab === key ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : t.chipBg, color: activeTab === key ? 'white' : t.text }}>
               {label}
@@ -1051,6 +1051,22 @@ export default function FlightScout() {
               )}
             </div>
 
+          </div>
+        )}
+
+        {/* === ABOUT TAB === */}
+        {activeTab === 'about' && (
+          <div className="glass" style={{ padding: '2rem', maxWidth: '640px', margin: '0 auto', lineHeight: 1.7 }}>
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem' }}>Über mich</h2>
+            <p style={{ color: t.text, marginBottom: '1rem' }}>
+              Hi, ich bin John — SAP-Entwickler aus Wien, der tagsüber Banken bei Treasury Management und Regulatory Reporting (IFRS 9, SA-CCR) hilft und abends an Nebenprojekten bastelt.
+            </p>
+            <p style={{ color: t.text, marginBottom: '1rem' }}>
+              Flight Scout ist entstanden, weil ich jedes Wochenende manuell Skyscanner durchgescrollt habe — irgendwann war mir das zu blöd und ich hab's automatisiert. Daneben arbeite ich an meiner Masterarbeit (TU Graz) über einen RAG-Chatbot für den Geschichtsunterricht und einer Flutter-App zum Bewerten von Guinness-Pints.
+            </p>
+            <p style={{ color: t.text }}>
+              Wenn ich nicht code, spiele ich Schach oder schaue Fußball.
+            </p>
           </div>
         )}
 
