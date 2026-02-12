@@ -495,6 +495,7 @@ def run_search(job_id: str, request: SearchRequest):
             for dur in durations:
                 total_trips += len(temp_scraper.generate_trips(start_date, end_date, request.start_weekday, dur))
         completed_trips = 0
+        status_updates = 0
 
         def on_deals(trip_deals: list[FlightDeal], airport_name: str):
             nonlocal seen_cities
@@ -509,14 +510,16 @@ def run_search(job_id: str, request: SearchRequest):
                 for d in trip_deals:
                     seen_cities.add(d.city)
                 job["destinations_found"] = len(seen_cities)
-                # Smooth progress: base from completed trips + bonus from incoming deals
-                base = int((completed_trips / max(total_trips, 1)) * 70)
-                deal_bonus = min(len(all_deals) // 3, 20)
-                job["progress"] = min(base + deal_bonus, 90)
 
         def on_status(message: str):
+            nonlocal status_updates
             with progress_lock:
                 job["message"] = message
+                status_updates += 1
+                # Smooth progress: status updates come per city/country processed
+                base = int((completed_trips / max(total_trips, 1)) * 50)
+                status_bonus = min(int(status_updates * 2.5), 40)
+                job["progress"] = min(base + status_bonus, 90)
 
         def on_progress(trip_idx: int, trip_total: int):
             nonlocal completed_trips
