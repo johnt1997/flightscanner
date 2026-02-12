@@ -1,6 +1,6 @@
 # Flight Scout
 
-Finde die günstigsten Wochenend-Flüge ab Wien, Bratislava und Budapest.
+Finde die guenstigsten Wochenend-Fluege ab Wien, Bratislava und Budapest.
 
 ## Features
 
@@ -14,16 +14,21 @@ Finde die günstigsten Wochenend-Flüge ab Wien, Bratislava und Budapest.
 - **Alternative Fluege** -- Pro Deal bis zu 3 weitere Flugoptionen aufklappbar
 - **PDF Report** -- Download fuer offline
 - **Direkte Buchungslinks** -- Skyscanner URLs
-- **Heatmap** -- Deals auf der Karte (Leaflet)
+- **Heatmap** -- Deals auf der Karte (Leaflet) mit Routenlinien
 - **Kalender-Heatmap** -- Guenstigster Preis pro Tag im Monatsuberblick
 - **Deal-Archiv** -- Deals speichern und verwalten (mit User-Auth)
-- **Telegram Preis-Alerts** -- Benachrichtigung wenn ein Deal unter deinem Wunschpreis liegt
+- **Telegram Deal-Alerts** -- Taegliche Benachrichtigung ueber guenstige Wochenend-Fluege per Telegram (7:00 UTC)
+- **Wetter-Anzeige** -- Wetter-Icons mit Temperatur-Tooltip pro Destination (Open-Meteo API)
 - **Gruppierte Ergebnisse** -- Deals nach Stadt gruppiert mit Akkordeon-UI
 - **Favoriten-Staedte** -- Lieblingsstaedte markieren, werden oben angezeigt
 - **Share-Button** -- Deal als formatierte Telegram-Karte in die Zwischenablage kopieren
 - **Dark/Light Mode** -- Theme umschaltbar, wird gespeichert
+- **Caching** -- SQLite-Cache fuer Everywhere-Ergebnisse (3h TTL), spart Proxy-Bandbreite
+- **Proxy-Support** -- Residential Proxies mit automatischer Rotation und 407-Retry
 - **403-Fallback** -- Bei API-Blockade werden Country-Level Preise als Fallback verwendet
-- **Verifizierte City IDs** -- 45 Staedte mit echten Skyscanner Entity IDs (via verify_city_ids.py)
+- **Rate Limiting** -- Max. 3 Suchen pro 30 Min. pro User (Admins ausgenommen)
+- **Admin Dashboard** -- User-Uebersicht und Suchverlauf (nur fuer Admins)
+- **About Me** -- Persoenliche Info-Seite
 
 ## Setup
 
@@ -47,38 +52,47 @@ npm run dev
 
 Frontend laeuft auf http://localhost:3000
 
+### Umgebungsvariablen
+
+| Variable | Beschreibung |
+|----------|--------------|
+| `PROXY_URL` | Residential Proxies (mehrere mit `;` getrennt) |
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot Token fuer Deal-Alerts |
+| `FLIGHT_SCOUT_SECRET` | Secret fuer Auth-Token-Signierung |
+| `PORT` | Server-Port (Standard: 8000) |
+
 ## API Endpoints
 
 | Method | Endpoint | Beschreibung |
 |--------|----------|--------------|
 | GET | `/airports` | Liste aller Flughaefen |
-| POST | `/search` | Startet Flugsuche |
+| GET | `/cities` | Liste aller Staedte nach Land |
+| POST | `/search` | Startet Flugsuche (Auth) |
 | GET | `/status/{job_id}` | Job-Status abfragen |
+| POST | `/stop/{job_id}` | Laufende Suche abbrechen |
 | GET | `/download/{job_id}` | PDF herunterladen |
 | POST | `/register` | User registrieren |
 | POST | `/login` | User anmelden |
 | POST | `/deals/save` | Deal ins Archiv speichern (Auth) |
 | GET | `/deals` | Gespeicherte Deals abrufen (Auth) |
 | DELETE | `/deals/{id}` | Deal aus Archiv loeschen (Auth) |
-| POST | `/alerts` | Preis-Alert erstellen (Auth) |
-| GET | `/alerts` | Alerts abrufen (Auth) |
-| DELETE | `/alerts/{id}` | Alert loeschen (Auth) |
+| POST | `/deal-alerts` | Deal-Alert erstellen (Auth, max. 2) |
+| GET | `/deal-alerts` | Deal-Alerts abrufen (Auth) |
+| DELETE | `/deal-alerts/{id}` | Deal-Alert loeschen (Auth) |
 | POST | `/calendar` | Kalender-Preisdaten fuer einen Monat |
-
-## Tools
-
-| Script | Beschreibung |
-|--------|--------------|
-| `verify_city_ids.py` | Verifiziert alle City Entity IDs gegen die Skyscanner API |
-| `collect_city_ids.py` | Sammelt Entity IDs fuer alle Staedte weltweit (langsam) |
-| `test_city_search.py` | Test-Script fuer direkte Stadtsuche und API-Debugging |
+| GET | `/admin/users` | User-Liste (Admin) |
+| GET | `/admin/searches` | Suchverlauf (Admin) |
+| POST | `/admin/test-alerts` | Alert-Check manuell ausloesen (Admin) |
 
 ## Architektur
 
-- **Datenbank:** SQLite (`flight_scout.db`) mit Tabellen: `users`, `saved_deals`, `price_alerts`
+- **Datenbank:** SQLite (`flight_scout.db`) mit Tabellen: `users`, `saved_deals`, `deal_alerts`, `search_cache`, `search_log`
 - **Auth:** Token-basiert (HMAC), Passwoerter mit bcrypt gehasht
-- **Telegram Alerts:** Werden nach jeder manuellen Suche geprueft. Bot-Token in `backend/alerts.py` konfigurieren.
+- **Telegram Alerts:** Hintergrund-Thread checkt taeglich um 7:00 UTC alle aktiven Alerts via Everywhere-Suche. Bot-Token als Umgebungsvariable `TELEGRAM_BOT_TOKEN`.
+- **Caching:** Everywhere-Ergebnisse werden 3h in SQLite gecached. Gleiche Suche = kein erneuter API-Call.
+- **Proxies:** Residential Proxies mit automatischer Rotation. 407-Fehler werden sofort mit neuem Proxy wiederholt, 403-Fehler (Skyscanner-Block) mit Wartezeit.
 - **API-Strategie:** Everywhere-Suche -> Country-Suche -> City-Detail-Calls. Bei 403-Block wird auf Country-Level Preise zurueckgefallen.
+- **Parallelisierung:** Bis zu 3 Trips gleichzeitig (ThreadPoolExecutor), Kalendersuche ebenfalls parallel.
 
 ## Konfiguration
 
@@ -98,19 +112,10 @@ AIRPORTS = {
 
 Die Entity-ID findest du in den Skyscanner Network Requests oder via `verify_city_ids.py`.
 
-### City IDs verifizieren
-
-```bash
-cd backend
-python verify_city_ids.py
-```
-
-Vergleicht alle Staedte in CITY_DATABASE mit den echten IDs aus der Skyscanner API und zeigt Abweichungen an.
-
 ### Telegram Bot einrichten
 
 1. Bot bei [@BotFather](https://t.me/BotFather) erstellen
-2. Token in `backend/alerts.py` eintragen (`TELEGRAM_BOT_TOKEN`)
+2. `TELEGRAM_BOT_TOKEN` als Umgebungsvariable setzen
 3. Chat-ID ueber [@userinfobot](https://t.me/userinfobot) herausfinden
 4. Im Archiv-Tab einen Alert mit der Chat-ID erstellen
 
@@ -119,7 +124,9 @@ Vergleicht alle Staedte in CITY_DATABASE mit den echten IDs aus der Skyscanner A
 - **Backend:** Python 3.11+, FastAPI, SQLite, bcrypt
 - **Frontend:** React 18, Vite
 - **Karte:** Leaflet / react-leaflet
+- **Wetter:** Open-Meteo API (kostenlos, kein Key)
 - **PDF:** fpdf2
+- **Deployment:** Docker, Railway
 
 ## Disclaimer
 
