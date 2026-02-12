@@ -15,7 +15,7 @@ function getPriceColor(price, maxPrice) {
   return '#ef4444';
 }
 
-export default function CalendarView({ airports, maxPrice, duration, adults, blacklistCountries }) {
+export default function CalendarView({ airports, maxPrice, duration, adults, blacklistCountries, token }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth()); // 0-indexed
@@ -49,7 +49,7 @@ export default function CalendarView({ airports, maxPrice, duration, adults, bla
     try {
       const res = await fetch(`${API_URL}/calendar`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           airports,
           month: monthStr,
@@ -60,6 +60,11 @@ export default function CalendarView({ airports, maxPrice, duration, adults, bla
         }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        setLoading(false);
+        alert(data.detail || 'Fehler bei der Kalender-Suche');
+        return;
+      }
       const jobId = data.job_id;
 
       // Poll for completion

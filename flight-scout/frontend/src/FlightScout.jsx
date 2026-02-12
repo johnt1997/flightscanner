@@ -1226,7 +1226,7 @@ export default function FlightScout() {
 
         {/* === CALENDAR TAB === */}
         <div style={{ display: activeTab === 'calendar' ? 'block' : 'none' }}>
-          <CalendarView airports={selectedAirports} maxPrice={maxPrice} duration={durations[0] || 2} adults={adults} blacklistCountries={blacklistCountries} />
+          <CalendarView airports={selectedAirports} maxPrice={maxPrice} duration={durations[0] || 2} adults={adults} blacklistCountries={blacklistCountries} token={user?.token} />
         </div>
 
         {/* === ARCHIVE TAB === */}

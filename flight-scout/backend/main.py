@@ -283,7 +283,9 @@ def delete_search_endpoint(search_id: int, request: Request):
 
 # Rate limiting: max 3 searches per user per hour
 search_history: dict[int, list[float]] = {}  # user_id -> list of timestamps
+calendar_history: dict[int, list[float]] = {}  # user_id -> list of timestamps
 SEARCH_LIMIT = 3
+CALENDAR_LIMIT = 1
 SEARCH_WINDOW = 1800  # 30 minutes in seconds
 ADMIN_USERS = {"john1997"}  # No rate limit for these users
 
@@ -433,7 +435,26 @@ def test_alerts(request: Request):
 # --- Calendar Endpoint ---
 
 @app.post("/calendar")
-def calendar_search(req: CalendarRequest, background_tasks: BackgroundTasks):
+def calendar_search(req: CalendarRequest, background_tasks: BackgroundTasks, request: Request):
+    # Auth check
+    auth = request.headers.get("authorization", "")
+    token = auth.replace("Bearer ", "") if auth.startswith("Bearer ") else ""
+    user_id = verify_token(token) if token else None
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Bitte zuerst anmelden.")
+
+    # Rate limit (1 calendar search per 30 min, admins exempt)
+    username = _get_username(user_id)
+    if username not in ADMIN_USERS:
+        now = time.time()
+        user_cal = calendar_history.get(user_id, [])
+        user_cal = [t for t in user_cal if now - t < SEARCH_WINDOW]
+        if len(user_cal) >= CALENDAR_LIMIT:
+            wait_minutes = int((SEARCH_WINDOW - (now - user_cal[0])) / 60) + 1
+            raise HTTPException(status_code=429, detail=f"Maximal {CALENDAR_LIMIT} Kalender-Suche pro 30 Min. Warte noch {wait_minutes} Min.")
+        user_cal.append(now)
+        calendar_history[user_id] = user_cal
+
     job_id = str(uuid.uuid4())[:8]
 
     jobs[job_id] = {
