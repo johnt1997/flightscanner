@@ -1320,10 +1320,13 @@ export default function FlightScout() {
           <div className="glass" style={{ padding: '2rem', maxWidth: '640px', margin: '0 auto', lineHeight: 1.7 }}>
             <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem' }}>Über mich</h2>
             <p style={{ color: t.text, marginBottom: '1rem' }}>
-              Hi, ich bin John — SAP-Entwickler aus Wien, der tagsüber Banken bei Treasury Management und Regulatory Reporting (IFRS 9, SA-CCR) hilft und abends an Nebenprojekten bastelt.
+              Hallo, ich heiße John — SAP-Entwickler aus Wien, der tagsüber Treasury Management und Regulatory Reporting (IFRS 9, SA-CCR) schupft und abends an Nebenprojekten wie diesem bastelt.
             </p>
             <p style={{ color: t.text, marginBottom: '1rem' }}>
               Flight Scout ist entstanden, weil ich jedes Wochenende manuell Skyscanner durchgescrollt habe — irgendwann war mir das zu blöd und ich hab's automatisiert. Daneben arbeite ich an meiner Masterarbeit (TU Graz) über einen RAG-Chatbot für den Geschichtsunterricht und einer Flutter-App zum Bewerten von Guinness-Pints.
+            </p>
+            <p>
+              Feedback gerne unter john.tusha@student.tugraz.at
             </p>
             <p style={{ color: t.text }}>
               Wenn ich nicht code, spiele ich Schach oder schaue Fußball.
