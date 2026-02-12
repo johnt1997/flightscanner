@@ -62,6 +62,12 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
 
+        CREATE TABLE IF NOT EXISTS search_cache (
+            key TEXT PRIMARY KEY,
+            data TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
         CREATE TABLE IF NOT EXISTS search_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -228,6 +234,41 @@ def delete_alert(user_id: int, alert_id: int) -> bool:
     deleted = cursor.rowcount > 0
     conn.close()
     return deleted
+
+
+# --- Search Cache ---
+
+CACHE_TTL_HOURS = 3
+
+def get_cache(key: str) -> dict | None:
+    import json
+    conn = get_db()
+    row = conn.execute(
+        "SELECT data, created_at FROM search_cache WHERE key = ?", (key,)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    from datetime import datetime, timedelta
+    created = datetime.fromisoformat(row["created_at"])
+    if datetime.utcnow() - created > timedelta(hours=CACHE_TTL_HOURS):
+        return None
+    return json.loads(row["data"])
+
+
+def set_cache(key: str, data: dict):
+    import json
+    conn = get_db()
+    conn.execute(
+        "INSERT OR REPLACE INTO search_cache (key, data, created_at) VALUES (?, ?, datetime('now'))",
+        (key, json.dumps(data))
+    )
+    # Cleanup expired entries
+    conn.execute(
+        f"DELETE FROM search_cache WHERE created_at < datetime('now', '-{CACHE_TTL_HOURS} hours')"
+    )
+    conn.commit()
+    conn.close()
 
 
 # --- Search Log ---

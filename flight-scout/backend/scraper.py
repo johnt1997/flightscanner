@@ -462,6 +462,14 @@ class SkyscannerAPI:
         return response
 
     def search_flights(self, departure: datetime, return_date: datetime, cancel_check=None) -> dict:
+        from database import get_cache, set_cache
+        cache_key = f"{self.ORIGIN_SKY_CODE}_{departure.strftime('%Y-%m-%d')}_{return_date.strftime('%Y-%m-%d')}_{self.ADULTS}"
+        cached = get_cache(cache_key)
+        if cached:
+            results = cached.get("everywhereDestination", {}).get("results", [])
+            print(f"[CACHE HIT] {self.ORIGIN_SKY_CODE} {departure.strftime('%d.%m.')} -> {len(results)} Ergebnisse")
+            return cached
+
         body = {
             "cabinClass": "ECONOMY",
             "childAges": [],
@@ -492,6 +500,7 @@ class SkyscannerAPI:
                 data = response.json()
                 results = data.get("everywhereDestination", {}).get("results", [])
                 print(f"[{label}] {len(results)} Ergebnisse")
+                set_cache(cache_key, data)
                 return data
             print(f"[{label}] Fehlgeschlagen! Status {response.status_code}")
             return {}
