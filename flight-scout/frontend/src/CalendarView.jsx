@@ -15,7 +15,12 @@ function getPriceColor(price, maxPrice) {
   return '#ef4444';
 }
 
-export default function CalendarView({ airports, maxPrice, duration, adults, blacklistCountries, token }) {
+const Flag = ({ cc, size = 16, style = {} }) => cc ? (
+  <img src={`https://flagcdn.com/w40/${cc}.png`} alt="" width={size} height={Math.round(size * 0.75)}
+    style={{ borderRadius: 2, verticalAlign: 'middle', ...style }} />
+) : null;
+
+export default function CalendarView({ airports, maxPrice, duration, adults, blacklistCountries, token, countryCC = {} }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth()); // 0-indexed
@@ -246,6 +251,7 @@ export default function CalendarView({ airports, maxPrice, duration, adults, bla
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
               >
                 <div>
+                  <Flag cc={countryCC[deal.country]} size={14} style={{ marginRight: '0.35rem' }} />
                   <span style={{ fontWeight: 600 }}>{deal.country}</span>
                   <span style={{ marginLeft: '0.75rem', fontSize: '0.875rem', color: '#94a3b8' }}>ab {deal.origin}</span>
                 </div>
