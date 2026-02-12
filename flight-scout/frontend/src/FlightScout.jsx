@@ -4,10 +4,28 @@ import CalendarView from './CalendarView';
 const API_URL = '';
 
 const AIRPORTS = {
-  vie: { name: 'Wien', emoji: '🇦🇹', color: '#dc2626' },
-  bts: { name: 'Bratislava', emoji: '🇸🇰', color: '#2563eb' },
-  bud: { name: 'Budapest', emoji: 'BD', color: '#16a34a' },
+  vie: { name: 'Wien', cc: 'at', color: '#dc2626' },
+  bts: { name: 'Bratislava', cc: 'sk', color: '#2563eb' },
+  bud: { name: 'Budapest', cc: 'hu', color: '#16a34a' },
 };
+
+const COUNTRY_CC = {
+  'Italien': 'it', 'Spanien': 'es', 'Vereinigtes Königreich': 'gb', 'Irland': 'ie',
+  'Frankreich': 'fr', 'Niederlande': 'nl', 'Belgien': 'be', 'Dänemark': 'dk',
+  'Schweden': 'se', 'Lettland': 'lv', 'Litauen': 'lt', 'Norwegen': 'no',
+  'Finnland': 'fi', 'Griechenland': 'gr', 'Türkei': 'tr', 'Albanien': 'al',
+  'Serbien': 'rs', 'Rumänien': 'ro', 'Bulgarien': 'bg', 'Kroatien': 'hr',
+  'Bosnien und Herzegowina': 'ba', 'Montenegro': 'me', 'Nordmazedonien': 'mk',
+  'Slowakei': 'sk', 'Slowenien': 'si', 'Tschechische Republik': 'cz',
+  'Polen': 'pl', 'Portugal': 'pt', 'Marokko': 'ma', 'Ägypten': 'eg',
+  'Island': 'is', 'Georgien': 'ge', 'Malta': 'mt', 'Österreich': 'at', 'Ungarn': 'hu',
+  'Deutschland': 'de', 'Schweiz': 'ch', 'Zypern': 'cy',
+};
+
+const Flag = ({ cc, size = 16, style = {} }) => cc ? (
+  <img src={`https://flagcdn.com/w40/${cc}.png`} alt="" width={size} height={Math.round(size * 0.75)}
+    style={{ borderRadius: 2, verticalAlign: 'middle', ...style }} />
+) : null;
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -783,7 +801,7 @@ export default function FlightScout() {
                   <div key={code} className={`chip ${selectedAirports.includes(code) ? 'selected' : ''}`}
                     style={{ background: selectedAirports.includes(code) ? `${airport.color}22` : t.chipBg }}
                     onClick={() => toggleAirport(code)}>
-                    <span style={{ marginRight: '0.5rem' }}>{airport.emoji}</span>
+                    <Flag cc={airport.cc} size={18} style={{ marginRight: '0.5rem' }} />
                     {airport.name}
                     <span style={{ marginLeft: '0.5rem', opacity: 0.6, fontFamily: 'Space Mono, monospace', fontSize: '0.875rem' }}>{code.toUpperCase()}</span>
                   </div>
@@ -1094,6 +1112,7 @@ export default function FlightScout() {
                         <div style={{ overflow: 'hidden' }}>
                           <div style={{ fontWeight: 700, fontSize: 'clamp(0.95rem, 3.5vw, 1.15rem)', lineHeight: 1.3 }}>
                             {group.city}{' '}
+                            <Flag cc={COUNTRY_CC[group.country]} size={14} style={{ marginRight: '0.2rem', opacity: 0.7 }} />
                             <span style={{ opacity: 0.5, fontWeight: 400, fontSize: '0.85em' }}>{group.country}</span>
                           </div>
                           <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
@@ -1222,7 +1241,7 @@ export default function FlightScout() {
                   {savedDeals.map((deal) => (
                     <div key={deal.id} className="result-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <a href={deal.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', flex: 1 }}>
-                        <div style={{ fontWeight: 600 }}>{deal.city} <span style={{ opacity: 0.5, fontWeight: 400 }}>{deal.country}</span></div>
+                        <div style={{ fontWeight: 600 }}>{deal.city} <Flag cc={COUNTRY_CC[deal.country]} size={13} style={{ marginRight: '0.15rem', opacity: 0.7 }} /><span style={{ opacity: 0.5, fontWeight: 400 }}>{deal.country}</span></div>
                         <div style={{ fontSize: '0.875rem', color: t.textMuted }}>{deal.departure_date && formatDate(deal.departure_date)} – {deal.return_date && formatDate(deal.return_date)} <span style={{ opacity: 0.6 }}>ab {deal.origin}</span></div>
                       </a>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
