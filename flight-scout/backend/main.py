@@ -369,6 +369,14 @@ def admin_searches(request: Request, limit: int = 50):
     return {"searches": get_search_log(limit)}
 
 
+@app.post("/admin/test-alerts")
+def test_alerts(request: Request):
+    _require_admin(request)
+    from alerts import run_daily_alert_check
+    run_daily_alert_check()
+    return {"message": "Alert-Check ausgeführt. Ergebnis im Log."}
+
+
 # --- Calendar Endpoint ---
 
 @app.post("/calendar")
