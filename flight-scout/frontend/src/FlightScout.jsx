@@ -1145,7 +1145,7 @@ export default function FlightScout() {
             <div className="glass" style={{ padding: '2rem' }}>
               <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>Telegram Alerts</h2>
               <p style={{ color: t.textMuted, margin: '0 0 1.5rem 0', fontSize: '0.875rem' }}>
-                Erhalte täglich Benachrichtigungen über günstige Wochenend-Flüge per Telegram. Max. 2 Alerts.
+                Erhalte täglich um 08:00 Uhr Benachrichtigungen über günstige Wochenend-Flüge per Telegram. Max. 2 Alerts.
               </p>
 
               {/* Create Alert Form */}
@@ -1230,9 +1230,9 @@ export default function FlightScout() {
                     {adminUsers.map(u => (
                       <tr key={u.id} style={{ borderBottom: `1px solid ${t.border}22` }}>
                         <td style={{ padding: '0.5rem', fontWeight: 600 }}>{u.username}</td>
-                        <td style={{ padding: '0.5rem', color: t.textMuted }}>{u.created_at ? new Date(u.created_at).toLocaleDateString('de-DE') : '-'}</td>
+                        <td style={{ padding: '0.5rem', color: t.textMuted }}>{u.created_at ? new Date(u.created_at + 'Z').toLocaleDateString('de-AT') : '-'}</td>
                         <td style={{ padding: '0.5rem', textAlign: 'right' }}>{u.search_count}</td>
-                        <td style={{ padding: '0.5rem', color: t.textMuted }}>{u.last_search ? new Date(u.last_search).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                        <td style={{ padding: '0.5rem', color: t.textMuted }}>{u.last_search ? new Date(u.last_search + 'Z').toLocaleString('de-AT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1258,7 +1258,7 @@ export default function FlightScout() {
                     {adminSearches.map(s => (
                       <tr key={s.id} style={{ borderBottom: `1px solid ${t.border}22` }}>
                         <td style={{ padding: '0.5rem', fontWeight: 600 }}>{s.username}</td>
-                        <td style={{ padding: '0.5rem', color: t.textMuted }}>{new Date(s.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                        <td style={{ padding: '0.5rem', color: t.textMuted }}>{new Date(s.created_at + 'Z').toLocaleString('de-AT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
                         <td style={{ padding: '0.5rem' }}>{s.search_mode}</td>
                         <td style={{ padding: '0.5rem' }}>{s.airports}</td>
                         <td style={{ padding: '0.5rem', color: t.textMuted }}>{s.start_date && new Date(s.start_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} – {s.end_date && new Date(s.end_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</td>
