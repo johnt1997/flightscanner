@@ -1325,11 +1325,13 @@ export default function FlightScout() {
             <p style={{ color: t.text, marginBottom: '1rem' }}>
               Flight Scout ist entstanden, weil ich jedes Wochenende manuell Skyscanner durchgescrollt habe — irgendwann war mir das zu blöd und ich hab's automatisiert. Daneben arbeite ich an meiner Masterarbeit (TU Graz) über einen RAG-Chatbot für den Geschichtsunterricht und einer Flutter-App zum Bewerten von Guinness-Pints.
             </p>
-            <p>
-              Feedback gerne unter john.tusha@student.tugraz.at
-            </p>
+           
             <p style={{ color: t.text }}>
               Wenn ich nicht code, spiele ich Schach oder schaue Fußball.
+            </p>
+
+             <p>
+              Feedback gerne an john.tusha@student.tugraz.at
             </p>
           </div>
         )}
