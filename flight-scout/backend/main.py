@@ -509,6 +509,10 @@ def run_search(job_id: str, request: SearchRequest):
                 for d in trip_deals:
                     seen_cities.add(d.city)
                 job["destinations_found"] = len(seen_cities)
+                # Smooth progress: base from completed trips + bonus from incoming deals
+                base = int((completed_trips / max(total_trips, 1)) * 70)
+                deal_bonus = min(len(all_deals) // 3, 20)
+                job["progress"] = min(base + deal_bonus, 90)
 
         def on_status(message: str):
             with progress_lock:
