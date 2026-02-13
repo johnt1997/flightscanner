@@ -899,7 +899,7 @@ export default function FlightScout() {
                         const dateStr = depDate && retDate
                           ? `${depDate.toLocaleDateString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit' })} – ${retDate.toLocaleDateString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit' })}`
                           : '';
-                        const cc = COUNTRY_CC[deal.country];
+                        const cc = COUNTRY_CC[deal.country] || COUNTRY_CC[deal.city];
                         const isBest = i === 0;
 
                         return (

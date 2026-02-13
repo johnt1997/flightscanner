@@ -94,7 +94,7 @@ def run_daily_alert_check():
                     continue
                 raw_price = fq.get("cheapest", {}).get("rawPrice", 9999)
                 city_name = location.get("name", "?")
-                country_name = location.get("countryName", "")
+                country_name = location.get("countryName", "") or city_name
                 sky_code = location.get("skyCode", "")
                 url = (
                     f"https://www.skyscanner.at/transport/fluge/{airport_code}/{sky_code.lower()}/"
