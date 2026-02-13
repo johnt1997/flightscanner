@@ -1354,7 +1354,7 @@ export default function FlightScout() {
                   {/* Starttag */}
                   <div style={{ marginBottom: '1.25rem' }}>
                     <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>
-                      Starttag: {WEEKDAYS[startWeekday]} {durations.length === 1 && <span style={{ fontWeight: 400, color: t.textDim }}>→ {WEEKDAYS[(startWeekday + durations[0]) % 7]}</span>}
+                      Starttag
                     </label>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       {WEEKDAYS.map((day, i) => (
