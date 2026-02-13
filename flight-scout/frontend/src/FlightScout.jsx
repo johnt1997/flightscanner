@@ -786,6 +786,15 @@ export default function FlightScout() {
         .deal-toast.exiting { animation: dealSlideOut 0.4s ease-in forwards; }
         .landing-deal-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.15); }
         .landing-deal-card:hover div[style*="opacity: 0.3"] { opacity: 0.7 !important; }
+        @keyframes goldShimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+        .best-deal-badge {
+          background: linear-gradient(110deg, #b8860b 0%, #ffd700 25%, #fff8dc 50%, #ffd700 75%, #b8860b 100%);
+          background-size: 200% auto;
+          -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+          animation: goldShimmer 3s linear infinite;
+          font-weight: 800; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+        .best-deal-card { border: 1px solid rgba(255,215,0,0.3) !important; box-shadow: 0 0 20px rgba(255,215,0,0.08); }
         @keyframes progressPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         .progress-fill { animation: progressPulse 2s ease-in-out infinite; }
         .date-pill { padding: 0.35rem 0.7rem; border-radius: 8px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
@@ -891,6 +900,7 @@ export default function FlightScout() {
                           ? `${depDate.toLocaleDateString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit' })} – ${retDate.toLocaleDateString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit' })}`
                           : '';
                         const cc = COUNTRY_CC[deal.country];
+                        const isBest = i === 0;
 
                         return (
                           <a
@@ -898,13 +908,17 @@ export default function FlightScout() {
                             href={deal.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="landing-deal-card"
+                            className={`landing-deal-card${isBest ? ' best-deal-card' : ''}`}
                             style={{
                               display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                              background: theme === 'dark'
-                                ? `linear-gradient(135deg, rgba(255,255,255,0.04) 0%, ${priceColor}08 100%)`
-                                : `linear-gradient(135deg, rgba(255,255,255,0.8) 0%, ${priceColor}12 100%)`,
-                              border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                              background: isBest
+                                ? (theme === 'dark'
+                                  ? 'linear-gradient(135deg, rgba(255,215,0,0.06) 0%, rgba(255,255,255,0.04) 50%, rgba(255,215,0,0.03) 100%)'
+                                  : 'linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,255,255,0.9) 50%, rgba(255,215,0,0.05) 100%)')
+                                : (theme === 'dark'
+                                  ? `linear-gradient(135deg, rgba(255,255,255,0.04) 0%, ${priceColor}08 100%)`
+                                  : `linear-gradient(135deg, rgba(255,255,255,0.8) 0%, ${priceColor}12 100%)`),
+                              border: isBest ? '1px solid rgba(255,215,0,0.3)' : `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
                               borderRadius: '16px', padding: '1.25rem',
                               textDecoration: 'none', color: 'inherit',
                               transition: 'all 0.25s ease',
@@ -914,12 +928,25 @@ export default function FlightScout() {
                               minHeight: '130px',
                             }}
                           >
-                            {/* Subtle glow accent */}
+                            {/* Gold glow for best deal, subtle color glow for others */}
                             <div style={{
                               position: 'absolute', top: '-20px', right: '-20px', width: '80px', height: '80px',
-                              background: `radial-gradient(circle, ${priceColor}20 0%, transparent 70%)`,
+                              background: isBest
+                                ? 'radial-gradient(circle, rgba(255,215,0,0.25) 0%, transparent 70%)'
+                                : `radial-gradient(circle, ${priceColor}20 0%, transparent 70%)`,
                               borderRadius: '50%', pointerEvents: 'none',
                             }} />
+
+                            {/* Best Deal Badge */}
+                            {isBest && (
+                              <div style={{
+                                position: 'absolute', top: '0.75rem', right: '0.75rem',
+                                display: 'flex', alignItems: 'center', gap: '0.3rem',
+                              }}>
+                                <span style={{ fontSize: '0.7rem' }}>&#9733;</span>
+                                <span className="best-deal-badge">Best Deal</span>
+                              </div>
+                            )}
 
                             <div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -935,7 +962,7 @@ export default function FlightScout() {
                               <div style={{ fontSize: '0.75rem', color: t.textDim }}>{dateStr}</div>
                               <div style={{
                                 fontFamily: 'Space Mono, monospace', fontWeight: 700, fontSize: '1.4rem',
-                                color: priceColor, lineHeight: 1,
+                                color: isBest ? '#ffd700' : priceColor, lineHeight: 1,
                               }}>
                                 {Math.round(deal.price)}€
                               </div>
@@ -953,8 +980,11 @@ export default function FlightScout() {
                   </div>
                 ))}
 
+                <div style={{ textAlign: 'center', color: t.textDim, fontSize: '0.75rem', marginTop: '1.5rem', marginBottom: '0.5rem' }}>
+                  Preise pro Person · Hin- und Rückflug · Economy
+                </div>
                 {publicDeals.updated_at && (
-                  <div style={{ textAlign: 'center', color: t.textDim, fontSize: '0.8rem', marginTop: '0.5rem', marginBottom: '2rem' }}>
+                  <div style={{ textAlign: 'center', color: t.textDim, fontSize: '0.75rem', marginBottom: '2rem', opacity: 0.6 }}>
                     Zuletzt aktualisiert: {new Date(publicDeals.updated_at + 'Z').toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 )}
