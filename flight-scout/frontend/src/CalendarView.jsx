@@ -31,7 +31,14 @@ export default function CalendarView({ airports, maxPrice, duration, adults, bla
 
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
 
+  // Limits: current month to +3 months
+  const minDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  const maxDate = new Date(now.getFullYear(), now.getMonth() + 3, 1);
+  const canGoPrev = new Date(year, month - 1, 1) >= minDate;
+  const canGoNext = new Date(year, month + 1, 1) <= maxDate;
+
   const prevMonth = () => {
+    if (!canGoPrev) return;
     if (month === 0) { setMonth(11); setYear(y => y - 1); }
     else setMonth(m => m - 1);
     setCalendarData(null);
@@ -39,6 +46,7 @@ export default function CalendarView({ airports, maxPrice, duration, adults, bla
   };
 
   const nextMonth = () => {
+    if (!canGoNext) return;
     if (month === 11) { setMonth(0); setYear(y => y + 1); }
     else setMonth(m => m + 1);
     setCalendarData(null);
@@ -166,7 +174,7 @@ export default function CalendarView({ airports, maxPrice, duration, adults, bla
       {/* Month Navigation */}
       <div className="glass" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <button onClick={prevMonth} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '1.2rem' }}>
+          <button onClick={prevMonth} disabled={!canGoPrev} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem 1rem', borderRadius: '8px', cursor: canGoPrev ? 'pointer' : 'default', fontSize: '1.2rem', opacity: canGoPrev ? 1 : 0.3 }}>
             ◀
           </button>
           <div style={{ textAlign: 'center' }}>
@@ -177,7 +185,7 @@ export default function CalendarView({ airports, maxPrice, duration, adults, bla
               {duration} {duration === 1 ? 'Nacht' : 'Nächte'} · max {maxPrice}€
             </div>
           </div>
-          <button onClick={nextMonth} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '1.2rem' }}>
+          <button onClick={nextMonth} disabled={!canGoNext} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem 1rem', borderRadius: '8px', cursor: canGoNext ? 'pointer' : 'default', fontSize: '1.2rem', opacity: canGoNext ? 1 : 0.3 }}>
             ▶
           </button>
         </div>

@@ -481,6 +481,19 @@ def calendar_search(req: CalendarRequest, background_tasks: BackgroundTasks, req
         user_cal.append(now)
         calendar_history[user_id] = user_cal
 
+    # Month range: current month to +3 months
+    from datetime import datetime as dt
+    try:
+        req_year, req_month = map(int, req.month.split("-"))
+        now_dt = dt.utcnow()
+        max_month = now_dt.month + 3
+        max_year = now_dt.year + (max_month - 1) // 12
+        max_month = ((max_month - 1) % 12) + 1
+        if (req_year, req_month) < (now_dt.year, now_dt.month) or (req_year, req_month) > (max_year, max_month):
+            raise HTTPException(status_code=400, detail="Kalender nur für aktuelle + 3 Monate verfügbar.")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Ungültiges Monatsformat.")
+
     job_id = str(uuid.uuid4())[:8]
 
     jobs[job_id] = {
