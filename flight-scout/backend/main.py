@@ -3,7 +3,7 @@
 Flight Scout API - FastAPI Backend
 """
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Request
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -400,6 +400,32 @@ def download_pdf(job_id: str):
         media_type="application/pdf",
         filename=f"FlightScout_{job_id}.pdf"
     )
+
+
+@app.post("/pdf")
+def generate_pdf_from_deals(request: Request, body: dict = Body(...)):
+    user_id = get_user_id(request)
+    deals_data = body.get("deals", [])
+    if not deals_data:
+        raise HTTPException(status_code=400, detail="Keine Deals vorhanden")
+
+    deals = []
+    for d in deals_data:
+        deals.append(FlightDeal(
+            city=d.get("city", ""), country=d.get("country", ""), price=d.get("price", 0),
+            departure_date=d.get("departure_date", ""), return_date=d.get("return_date", ""),
+            is_direct=d.get("is_direct", False), url=d.get("url", ""),
+            flight_time=d.get("flight_time", ""), return_flight_time=d.get("return_flight_time", ""),
+            origin=d.get("origin", ""), latitude=d.get("latitude", 0), longitude=d.get("longitude", 0),
+            early_departure=d.get("early_departure", False), alternatives=d.get("alternatives", []),
+        ))
+
+    pdf_id = str(uuid.uuid4())[:8]
+    pdf_path = os.path.join(PDF_DIR, f"flight_report_{pdf_id}.pdf")
+    origins = ", ".join(set(d.origin for d in deals if d.origin))
+    create_pdf_report(deals, origins or "Unbekannt", filename=pdf_path)
+
+    return FileResponse(pdf_path, media_type="application/pdf", filename=f"FlightScout_{pdf_id}.pdf")
 
 
 # --- Admin Endpoints ---

@@ -670,7 +670,18 @@ export default function FlightScout() {
     }
   };
 
-  const downloadPdf = () => { if (jobId) window.open(`${API_URL}/download/${jobId}`, '_blank'); };
+  const downloadPdf = async () => {
+    if (jobId) { window.open(`${API_URL}/download/${jobId}`, '_blank'); return; }
+    if (!results.length) return;
+    try {
+      const res = await fetch(`${API_URL}/pdf`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ deals: results }) });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'FlightScout.pdf'; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { console.error('PDF error:', e); }
+  };
 
   const formatDate = (dateStr) => {
     const d = new Date(dateStr);
@@ -1284,7 +1295,7 @@ export default function FlightScout() {
             <div className="glass" style={{ padding: '2rem' }}>
               <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>Telegram Alerts</h2>
               <p style={{ color: t.textMuted, margin: '0 0 1.5rem 0', fontSize: '0.875rem' }}>
-                Erhalte täglich um 08:00 Uhr Benachrichtigungen über günstige Wochenend-Flüge per Telegram. Max. 2 Alerts.
+                Erhalte jeden Montag um 08:00 Uhr Benachrichtigungen über günstige Wochenend-Flüge per Telegram. Max. 2 Alerts.
               </p>
 
               {/* Create Alert Form */}

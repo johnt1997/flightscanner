@@ -1,6 +1,6 @@
 """
 Flight Scout Telegram Alerts - Daily deal notifications via Telegram Bot API.
-Checks all active alerts once per day using Everywhere search.
+Checks all active alerts weekly (Monday) using Everywhere search.
 """
 
 import os
@@ -122,21 +122,22 @@ def run_daily_alert_check():
 
 
 def start_alert_scheduler():
-    """Start background thread that runs alert check once daily at 7:00 UTC."""
+    """Start background thread that runs alert check weekly on Monday at 7:00 UTC (8:00 Wien)."""
     def scheduler_loop():
         while True:
             now = datetime.utcnow()
-            # Next run at 7:00 UTC
-            next_run = now.replace(hour=7, minute=0, second=0, microsecond=0)
-            if now >= next_run:
-                next_run += timedelta(days=1)
+            # Next Monday at 7:00 UTC
+            days_until_monday = (7 - now.weekday()) % 7  # 0=Monday
+            if days_until_monday == 0 and now.hour >= 7:
+                days_until_monday = 7
+            next_run = (now + timedelta(days=days_until_monday)).replace(hour=7, minute=0, second=0, microsecond=0)
             wait_seconds = (next_run - now).total_seconds()
-            print(f"[ALERT] Nächster Check: {next_run.strftime('%Y-%m-%d %H:%M')} UTC (in {wait_seconds/3600:.1f}h)")
+            print(f"[ALERT] Nächster Check: {next_run.strftime('%Y-%m-%d %H:%M')} UTC (Montag, in {wait_seconds/3600:.1f}h)")
             time.sleep(wait_seconds)
             try:
                 run_daily_alert_check()
             except Exception as e:
-                print(f"[ALERT] Fehler beim täglichen Check: {e}")
+                print(f"[ALERT] Fehler beim wöchentlichen Check: {e}")
 
     thread = threading.Thread(target=scheduler_loop, daemon=True)
     thread.start()
