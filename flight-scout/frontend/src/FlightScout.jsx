@@ -104,6 +104,7 @@ export default function FlightScout() {
   });
   const [startWeekday, setStartWeekday] = useState(4);
   const [durations, setDurations] = useState([2]);
+  const [flexibleDuration, setFlexibleDuration] = useState(false);
   const [adults, setAdults] = useState(1);
   const [maxPrice, setMaxPrice] = useState(70);
   const [minDepartureHour, setMinDepartureHour] = useState(14);
@@ -623,7 +624,7 @@ export default function FlightScout() {
 
   const isAdmin = user?.username === 'john1997';
   const MAX_CITIES = isAdmin ? 999 : 3;
-  const MAX_DURATIONS = isAdmin ? 999 : 2;
+  const MAX_DURATIONS = isAdmin ? 999 : (flexibleDuration ? 1 : 2);
 
   const toggleCity = (city) => {
     setSelectedCities(prev => {
@@ -647,6 +648,10 @@ export default function FlightScout() {
   };
 
   const toggleDuration = (dur) => {
+    if (flexibleDuration) {
+      setDurations([dur]);
+      return;
+    }
     setDurations(prev => {
       if (prev.includes(dur)) {
         if (prev.length === 1) return prev;
@@ -679,7 +684,11 @@ export default function FlightScout() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.token}` },
         body: JSON.stringify({
           airports: selectedAirports, start_date: startDate, end_date: endDate,
-          start_weekday: startWeekday, durations, adults, max_price: maxPrice,
+          start_weekday: startWeekday,
+          durations: flexibleDuration
+            ? [...new Set(durations.flatMap(d => [d - 1, d, d + 1]).filter(d => d >= 1 && d <= 7))].sort((a, b) => a - b)
+            : durations,
+          adults, max_price: maxPrice,
           min_departure_hour: minDepartureHour, max_return_hour: maxReturnHour,
           blacklist_countries: blacklistCountries,
           search_mode: searchMode,
@@ -1175,9 +1184,30 @@ export default function FlightScout() {
 
             {/* Duration Multi-Select */}
             <div style={{ marginBottom: '2rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>
-                Reisedauer (Nächte) – mehrere auswählbar
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <label style={{ fontWeight: 600, color: t.textMuted }}>
+                  Reisedauer (Nächte){!flexibleDuration && ' – mehrere auswählbar'}
+                </label>
+                <div
+                  onClick={() => {
+                    setFlexibleDuration(prev => {
+                      if (!prev && durations.length > 1) setDurations([durations[0]]);
+                      return !prev;
+                    });
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer',
+                    padding: '0.3rem 0.75rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600,
+                    background: flexibleDuration ? 'rgba(99,102,241,0.2)' : (theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                    border: flexibleDuration ? '1.5px solid #6366f1' : `1.5px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                    color: flexibleDuration ? '#a5b4fc' : t.textMuted,
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <span style={{ fontSize: '0.75rem' }}>{flexibleDuration ? '~' : '~'}</span>
+                  Flexibel
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 {[1, 2, 3, 4, 5, 6, 7].map(n => (
                   <div key={n} className={`dur-chip ${durations.includes(n) ? 'selected' : ''}`}
@@ -1186,6 +1216,11 @@ export default function FlightScout() {
                   </div>
                 ))}
               </div>
+              {flexibleDuration && durations.length === 1 && (
+                <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#a5b4fc', opacity: 0.8 }}>
+                  Sucht {Math.max(1, durations[0] - 1)}–{Math.min(7, durations[0] + 1)} Nächte
+                </div>
+              )}
             </div>
 
             {/* Max Price */}

@@ -339,8 +339,8 @@ def start_search(request: SearchRequest, background_tasks: BackgroundTasks, req:
     if username not in ADMIN_USERS:
         if request.search_mode == "cities" and len(request.selected_cities) > 3:
             raise HTTPException(status_code=400, detail="Maximal 3 Städte erlaubt.")
-        if len(request.durations) > 2:
-            raise HTTPException(status_code=400, detail="Maximal 2 Reisedauern erlaubt.")
+        if len(request.durations) > 3:
+            raise HTTPException(status_code=400, detail="Maximal 3 Reisedauern erlaubt.")
 
     # Log search to DB
     airports_str = ",".join(request.airports)
