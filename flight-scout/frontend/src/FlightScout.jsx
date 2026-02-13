@@ -119,13 +119,23 @@ export default function FlightScout() {
   // Job State
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('fs_last_results')) || []; } catch { return []; }
+  });
   const [isSearching, setIsSearching] = useState(false);
 
   // UI State
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [expandedCity, setExpandedCity] = useState(null);
   const [expandedAlts, setExpandedAlts] = useState(new Set());
+
+  // Persist last results to localStorage
+  useEffect(() => {
+    if (results.length > 0) {
+      try { localStorage.setItem('fs_last_results', JSON.stringify(results)); } catch {}
+    }
+  }, [results]);
 
   // Weather cache
   const [weatherCache, setWeatherCache] = useState({});
@@ -953,23 +963,6 @@ export default function FlightScout() {
               </div>
             </div>
 
-            {/* Weekday Selector */}
-            <div style={{ marginBottom: '2rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>
-                Starttag: {WEEKDAYS[startWeekday]} {durations.length === 1 && <span style={{ fontWeight: 400, color: t.textDim }}>→ {WEEKDAYS[(startWeekday + durations[0]) % 7]}</span>}
-              </label>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                {WEEKDAYS.map((day, i) => (
-                  <div key={day} className={`weekday-btn ${i === startWeekday ? 'start' : ''}`}
-                    onClick={() => {
-                      setStartWeekday(i);
-                      const nightsToSunday = i <= 5 ? (6 - i) : 1;
-                      setDurations([nightsToSunday]);
-                    }}>{day}</div>
-                ))}
-              </div>
-            </div>
-
             {/* Duration Multi-Select */}
             <div style={{ marginBottom: '2rem' }}>
               <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>
@@ -985,62 +978,97 @@ export default function FlightScout() {
               </div>
             </div>
 
-            {/* Price & Time */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Max. Preis pro Person</label>
-                <div style={{ position: 'relative' }}>
-                  <input type="text" inputMode="numeric" value={maxPrice} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setMaxPrice(v === '' ? '' : parseInt(v)); }} onBlur={() => { if (!maxPrice || maxPrice < 1) setMaxPrice(70); }} className="input-field" style={{ paddingRight: '3rem' }} />
-                  <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: t.textDim, fontFamily: 'Space Mono, monospace' }}>€</span>
-                </div>
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Frühester Hinflug</label>
-                <div style={{ position: 'relative' }}>
-                  <input type="text" inputMode="numeric" value={minDepartureHour} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setMinDepartureHour(v === '' ? '' : Math.min(parseInt(v), 23)); }} onBlur={() => { if (minDepartureHour === '' || minDepartureHour < 0) setMinDepartureHour(0); }} className="input-field" style={{ paddingRight: '4rem' }} />
-                  <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: t.textDim }}>:00 Uhr</span>
-                </div>
+            {/* Max Price */}
+            <div style={{ marginBottom: '2rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Max. Preis pro Person</label>
+              <div style={{ position: 'relative', maxWidth: '200px' }}>
+                <input type="text" inputMode="numeric" value={maxPrice} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setMaxPrice(v === '' ? '' : parseInt(v)); }} onBlur={() => { if (!maxPrice || maxPrice < 1) setMaxPrice(70); }} className="input-field" style={{ paddingRight: '3rem' }} />
+                <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: t.textDim, fontFamily: 'Space Mono, monospace' }}>€</span>
               </div>
             </div>
 
-            {/* Blacklist (nur bei Everywhere-Modus) */}
-            {searchMode === 'everywhere' && (
+            {/* Erweiterte Optionen */}
             <div style={{ marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', cursor: 'pointer' }} onClick={() => setShowCountryPicker(!showCountryPicker)}>
-                <label style={{ fontWeight: 600, color: t.textMuted }}>
-                  Länder-Blacklist
-                  {blacklistCountries.length > 0 && (
-                    <span style={{ marginLeft: '0.5rem', background: '#6366f1', padding: '0.25rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', color: 'white' }}>
-                      {blacklistCountries.length} ausgeschlossen
-                    </span>
-                  )}
-                </label>
-                <span style={{ color: t.textDim }}>{showCountryPicker ? '▲' : '▼'}</span>
+              <div
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: t.textMuted, fontWeight: 600, marginBottom: showAdvanced ? '1.25rem' : 0 }}
+              >
+                <span style={{ fontSize: '0.75rem', transition: 'transform 0.2s', transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                Erweiterte Optionen
+                {(startWeekday !== 4 || minDepartureHour !== 14 || blacklistCountries.length > 0) && (
+                  <span style={{ background: '#6366f1', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', color: 'white', fontWeight: 500 }}>angepasst</span>
+                )}
               </div>
-              {showCountryPicker && (
-                <div style={{ background: t.pickerBg, borderRadius: '12px', padding: '1rem' }}>
-                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                    <button onClick={() => setBlacklistCountries([...COUNTRIES])}
-                      style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: '8px', padding: '0.35rem 0.75rem', color: '#818cf8', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                      Alle auswählen
-                    </button>
-                    <button onClick={() => setBlacklistCountries([])}
-                      style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, borderRadius: '8px', padding: '0.35rem 0.75rem', color: t.textMuted, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                      Alle abwählen
-                    </button>
+
+              {showAdvanced && (
+                <div style={{ background: t.pickerBg, borderRadius: '12px', padding: '1.25rem' }}>
+                  {/* Starttag */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>
+                      Starttag: {WEEKDAYS[startWeekday]} {durations.length === 1 && <span style={{ fontWeight: 400, color: t.textDim }}>→ {WEEKDAYS[(startWeekday + durations[0]) % 7]}</span>}
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {WEEKDAYS.map((day, i) => (
+                        <div key={day} className={`weekday-btn ${i === startWeekday ? 'start' : ''}`}
+                          onClick={() => {
+                            setStartWeekday(i);
+                            const nightsToSunday = i <= 5 ? (6 - i) : 1;
+                            setDurations([nightsToSunday]);
+                          }}>{day}</div>
+                      ))}
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    {COUNTRIES.map(country => (
-                      <div key={country} className={`country-chip ${blacklistCountries.includes(country) ? 'selected' : ''}`} onClick={() => toggleCountry(country)}>{country}</div>
-                    ))}
+
+                  {/* Frühester Hinflug */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Frühester Hinflug</label>
+                    <div style={{ position: 'relative', maxWidth: '200px' }}>
+                      <input type="text" inputMode="numeric" value={minDepartureHour} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setMinDepartureHour(v === '' ? '' : Math.min(parseInt(v), 23)); }} onBlur={() => { if (minDepartureHour === '' || minDepartureHour < 0) setMinDepartureHour(0); }} className="input-field" style={{ paddingRight: '4rem' }} />
+                      <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: t.textDim }}>:00 Uhr</span>
+                    </div>
                   </div>
+
+                  {/* Blacklist */}
+                  {searchMode === 'everywhere' && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', cursor: 'pointer' }} onClick={() => setShowCountryPicker(!showCountryPicker)}>
+                      <label style={{ fontWeight: 600, color: t.textMuted }}>
+                        Länder-Blacklist
+                        {blacklistCountries.length > 0 && (
+                          <span style={{ marginLeft: '0.5rem', background: '#6366f1', padding: '0.25rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', color: 'white' }}>
+                            {blacklistCountries.length} ausgeschlossen
+                          </span>
+                        )}
+                      </label>
+                      <span style={{ color: t.textDim }}>{showCountryPicker ? '▲' : '▼'}</span>
+                    </div>
+                    {showCountryPicker && (
+                      <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '12px', padding: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                          <button onClick={() => setBlacklistCountries([...COUNTRIES])}
+                            style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: '8px', padding: '0.35rem 0.75rem', color: '#818cf8', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                            Alle auswählen
+                          </button>
+                          <button onClick={() => setBlacklistCountries([])}
+                            style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, borderRadius: '8px', padding: '0.35rem 0.75rem', color: t.textMuted, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                            Alle abwählen
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          {COUNTRIES.map(country => (
+                            <div key={country} className={`country-chip ${blacklistCountries.includes(country) ? 'selected' : ''}`} onClick={() => toggleCountry(country)}>{country}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {blacklistCountries.length === 0 && (
+                      <p style={{ fontSize: '0.875rem', color: t.textDim, margin: 0 }}>Keine Länder ausgeschlossen</p>
+                    )}
+                  </div>
+                  )}
                 </div>
               )}
-              {blacklistCountries.length === 0 && (
-                <p style={{ fontSize: '0.875rem', color: t.textDim, margin: 0 }}>Keine Länder ausgeschlossen – alle werden durchsucht</p>
-              )}
             </div>
-            )}
 
             {/* Search Button */}
             <button className="btn-primary" onClick={() => { if (!user) { setShowAuth(true); return; } startSearch(); }} disabled={isSearching || selectedAirports.length === 0 || (searchMode === 'cities' && selectedCities.length === 0)} style={{ width: '100%' }}>
