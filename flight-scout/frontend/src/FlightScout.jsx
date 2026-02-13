@@ -1361,8 +1361,20 @@ export default function FlightScout() {
                         <div key={day} className={`weekday-btn ${i === startWeekday ? 'start' : ''}`}
                           onClick={() => {
                             setStartWeekday(i);
-                            const nightsToSunday = i <= 5 ? (6 - i) : 1;
-                            setDurations([nightsToSunday]);
+                            // Sync startDate to next occurrence of this weekday
+                            if (startDate) {
+                              const d = new Date(startDate + 'T00:00:00');
+                              if (!isNaN(d.getTime())) {
+                                const jsTarget = i === 6 ? 0 : i + 1; // convert Mon=0 to JS Sun=0
+                                let diff = jsTarget - d.getDay();
+                                if (diff <= 0) diff += 7;
+                                if (diff === 7) diff = 0; // already on that day
+                                if (diff > 0) {
+                                  d.setDate(d.getDate() + diff);
+                                  setStartDate(d.toISOString().split('T')[0]);
+                                }
+                              }
+                            }
                           }}>{day}</div>
                       ))}
                     </div>
