@@ -15,6 +15,12 @@ function getPriceColor(price, maxPrice) {
   return '#ef4444';
 }
 
+const COUNTRY_SHORT = {
+  'Vereinigtes Königreich': 'UK', 'Bosnien und Herzegowina': 'Bosnien',
+  'Tschechische Republik': 'Tschechien', 'Nordmazedonien': 'N. Mazedonien',
+};
+const shortCountry = (name) => COUNTRY_SHORT[name] || name;
+
 const Flag = ({ cc, size = 16, style = {} }) => cc ? (
   <img src={`https://flagcdn.com/w40/${cc}.png`} alt="" width={size} height={Math.round(size * 0.75)}
     style={{ borderRadius: 2, verticalAlign: 'middle', ...style }} />
@@ -261,7 +267,7 @@ export default function CalendarView({ airports, maxPrice, duration, adults, bla
               >
                 <div>
                   <Flag cc={countryCC[deal.country]} size={14} style={{ marginRight: '0.35rem' }} />
-                  <span style={{ fontWeight: 600 }}>{deal.country}</span>
+                  <span style={{ fontWeight: 600 }}>{shortCountry(deal.country)}</span>
                   <span style={{ marginLeft: '0.75rem', fontSize: '0.875rem', color: '#94a3b8' }}>ab {deal.origin}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

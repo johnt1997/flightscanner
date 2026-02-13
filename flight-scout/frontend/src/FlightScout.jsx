@@ -22,6 +22,12 @@ const COUNTRY_CC = {
   'Deutschland': 'de', 'Schweiz': 'ch', 'Zypern': 'cy',
 };
 
+const COUNTRY_SHORT = {
+  'Vereinigtes Königreich': 'UK', 'Bosnien und Herzegowina': 'Bosnien',
+  'Tschechische Republik': 'Tschechien', 'Nordmazedonien': 'N. Mazedonien',
+};
+const shortCountry = (name) => COUNTRY_SHORT[name] || name;
+
 const Flag = ({ cc, size = 16, style = {} }) => cc ? (
   <img src={`https://flagcdn.com/w40/${cc}.png`} alt="" width={size} height={Math.round(size * 0.75)}
     style={{ borderRadius: 2, verticalAlign: 'middle', ...style }} />
@@ -1124,7 +1130,7 @@ export default function FlightScout() {
                           <div style={{ fontWeight: 700, fontSize: 'clamp(0.95rem, 3.5vw, 1.15rem)', lineHeight: 1.3 }}>
                             {group.city}{' '}
                             <Flag cc={COUNTRY_CC[group.country]} size={14} style={{ marginRight: '0.2rem', opacity: 0.7 }} />
-                            <span style={{ opacity: 0.5, fontWeight: 400, fontSize: '0.85em' }}>{group.country}</span>
+                            <span style={{ opacity: 0.5, fontWeight: 400, fontSize: '0.85em' }}>{shortCountry(group.country)}</span>
                           </div>
                           <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
                             {group.deals.slice(0, 6).map((deal, i) => (
@@ -1253,7 +1259,7 @@ export default function FlightScout() {
                   {savedDeals.map((deal) => (
                     <div key={deal.id} className="result-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <a href={deal.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', flex: 1 }}>
-                        <div style={{ fontWeight: 600 }}>{deal.city} <Flag cc={COUNTRY_CC[deal.country]} size={13} style={{ marginRight: '0.15rem', opacity: 0.7 }} /><span style={{ opacity: 0.5, fontWeight: 400 }}>{deal.country}</span></div>
+                        <div style={{ fontWeight: 600 }}>{deal.city} <Flag cc={COUNTRY_CC[deal.country]} size={13} style={{ marginRight: '0.15rem', opacity: 0.7 }} /><span style={{ opacity: 0.5, fontWeight: 400 }}>{shortCountry(deal.country)}</span></div>
                         <div style={{ fontSize: '0.875rem', color: t.textMuted }}>{deal.departure_date && formatDate(deal.departure_date)} – {deal.return_date && formatDate(deal.return_date)} <span style={{ opacity: 0.6 }}>ab {deal.origin}</span></div>
                       </a>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
