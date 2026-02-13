@@ -312,7 +312,7 @@ def delete_deal_alert(user_id: int, alert_id: int) -> bool:
 
 # --- Search Cache ---
 
-CACHE_TTL_HOURS = 3
+CACHE_TTL_HOURS = 6
 
 def get_cache(key: str) -> dict | None:
     import json
