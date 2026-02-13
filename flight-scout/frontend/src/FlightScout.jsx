@@ -1424,6 +1424,37 @@ export default function FlightScout() {
               )}
             </div>
 
+            {/* Search Summary */}
+            {startDate && endDate && selectedAirports.length > 0 && !isSearching && (() => {
+              const effDurations = flexibleDuration
+                ? [...new Set(durations.flatMap(d => [d - 1, d, d + 1]).filter(d => d >= 1 && d <= 7))].sort((a, b) => a - b)
+                : durations;
+              // Count trips: how many matching weekdays between startDate and endDate
+              let tripCount = 0;
+              const sd = new Date(startDate + 'T00:00:00');
+              const ed = new Date(endDate + 'T00:00:00');
+              const today = new Date(); today.setHours(0, 0, 0, 0);
+              if (!isNaN(sd.getTime()) && !isNaN(ed.getTime())) {
+                let cur = new Date(sd);
+                const jsTarget = startWeekday === 6 ? 0 : startWeekday + 1; // convert Mon=0 to JS Sun=0
+                while (cur.getDay() !== jsTarget) cur.setDate(cur.getDate() + 1);
+                while (cur <= ed) {
+                  if (cur >= today) tripCount++;
+                  cur.setDate(cur.getDate() + 7);
+                }
+              }
+              const totalCalls = tripCount * selectedAirports.length * effDurations.length;
+              const durText = effDurations.length === 1 ? `${effDurations[0]} Nächte` : `${effDurations[0]}–${effDurations[effDurations.length - 1]} Nächte`;
+              const sdFmt = new Date(startDate + 'T00:00:00').toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' });
+              const edFmt = new Date(endDate + 'T00:00:00').toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' });
+              return (
+                <div style={{ textAlign: 'center', fontSize: '0.8rem', color: t.textDim, marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                  {tripCount} {WEEKDAYS[startWeekday]}s · {sdFmt} – {edFmt} · {durText} · {selectedAirports.length} {selectedAirports.length === 1 ? 'Airport' : 'Airports'}
+                  <br /><span style={{ opacity: 0.6 }}>{totalCalls} Suchabfragen</span>
+                </div>
+              );
+            })()}
+
             {/* Search Button */}
             <button className="btn-primary" onClick={() => { if (!user) { setShowAuth(true); return; } startSearch(); }} disabled={isSearching || selectedAirports.length === 0 || (searchMode === 'cities' && selectedCities.length === 0)} style={{ width: '100%' }}>
               {isSearching ? 'Suche läuft...' : !user ? 'Anmelden um zu suchen' : searchMode === 'cities' ? `${selectedCities.length} Städte suchen` : 'Flüge suchen'}
