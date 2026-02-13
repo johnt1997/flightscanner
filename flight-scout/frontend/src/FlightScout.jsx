@@ -1444,7 +1444,7 @@ export default function FlightScout() {
               const edFmt = new Date(endDate + 'T00:00:00').toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' });
               return (
                 <div style={{ textAlign: 'center', fontSize: '0.8rem', color: t.textDim, marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                  {tripCount} {WEEKDAYS[startWeekday]}s · {sdFmt} – {edFmt} · {durText} · {selectedAirports.length} {selectedAirports.length === 1 ? 'Airport' : 'Airports'}
+                  {tripCount} {['Montage','Dienstage','Mittwoche','Donnerstage','Freitage','Samstage','Sonntage'][startWeekday]} · {sdFmt} – {edFmt} · {durText} · {selectedAirports.length} {selectedAirports.length === 1 ? 'Airport' : 'Airports'}
                   <br /><span style={{ opacity: 0.6 }}>{totalCalls} Suchabfragen</span>
                 </div>
               );
