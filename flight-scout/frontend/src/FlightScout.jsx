@@ -1434,7 +1434,7 @@ export default function FlightScout() {
               const airportNames = selectedAirports.map(a => AIRPORTS[a]?.name || a).join(', ');
               return (
                 <div style={{ textAlign: 'center', fontSize: '0.8rem', color: t.textDim, marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                  Suche alle <b>{pairsText}</b> Flüge · {sdFmt} – {edFmt} · ab {airportNames}
+                  Suche alle <b>{pairsText}</b> Flüge im Zeitraum {sdFmt} – {edFmt} ab {airportNames}
                 </div>
               );
             })()}
