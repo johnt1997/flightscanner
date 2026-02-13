@@ -1269,12 +1269,21 @@ export default function FlightScout() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Frühester Abflug</label>
-                <input type="date" value={startDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => setStartDate(e.target.value)} className="input-field" />
+                <input type="date" value={startDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => {
+                  const newStart = e.target.value;
+                  setStartDate(newStart);
+                  // Clamp endDate to max 3 months after new startDate
+                  if (newStart && endDate) {
+                    const maxEnd = new Date(newStart);
+                    maxEnd.setMonth(maxEnd.getMonth() + 3);
+                    if (new Date(endDate) > maxEnd) setEndDate(maxEnd.toISOString().split('T')[0]);
+                  }
+                }} className="input-field" />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Spätester Abflug</label>
-                <input type="date" value={endDate} min={startDate || new Date().toISOString().split('T')[0]} onChange={(e) => setEndDate(e.target.value)} className="input-field" />
-                <div style={{ fontSize: '0.75rem', color: t.textDim, marginTop: '0.35rem' }}>Rückflug ergibt sich aus Reisedauer</div>
+                <input type="date" value={endDate} min={startDate || new Date().toISOString().split('T')[0]} max={startDate ? (() => { const d = new Date(startDate); d.setMonth(d.getMonth() + 3); return d.toISOString().split('T')[0]; })() : undefined} onChange={(e) => setEndDate(e.target.value)} className="input-field" />
+                <div style={{ fontSize: '0.75rem', color: t.textDim, marginTop: '0.35rem' }}>Rückflug ergibt sich aus Reisedauer · max 3 Monate</div>
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Personen</label>

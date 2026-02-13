@@ -341,6 +341,14 @@ def start_search(request: SearchRequest, background_tasks: BackgroundTasks, req:
             raise HTTPException(status_code=400, detail="Maximal 3 Städte erlaubt.")
         if len(request.durations) > 3:
             raise HTTPException(status_code=400, detail="Maximal 3 Reisedauern erlaubt.")
+        # Max 3 months date range
+        try:
+            sd = datetime.strptime(request.start_date, "%Y-%m-%d")
+            ed = datetime.strptime(request.end_date, "%Y-%m-%d")
+            if (ed - sd).days > 93:
+                raise HTTPException(status_code=400, detail="Maximal 3 Monate Suchzeitraum erlaubt.")
+        except ValueError:
+            pass
 
     # Log search to DB
     airports_str = ",".join(request.airports)
