@@ -320,7 +320,7 @@ export default function FlightScout() {
     if (activeTab === 'deals' && !publicDeals && !loadingPublicDeals) fetchPublicDeals();
   }, [activeTab]);
 
-  // Smart sync: startDate -> endDate (same month end), startWeekday, duration
+  // Smart sync: startDate -> endDate (same month end) + startWeekday
   useEffect(() => {
     if (!startDate) return;
     const d = new Date(startDate + 'T00:00:00');
@@ -335,11 +335,6 @@ export default function FlightScout() {
     const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
     const endStr = lastDay.toISOString().split('T')[0];
     setEndDate(endStr);
-
-    // Sync duration: distance to Sunday (typical weekend return)
-    // Mo=0->So=6 nights, Di=1->5, Mi=2->4, Do=3->3, Fr=4->2, Sa=5->1, So=6->7(skip)
-    const nightsToSunday = weekday <= 5 ? (6 - weekday) : 1;
-    setDurations([nightsToSunday]);
   }, [startDate]);
   useEffect(() => {
     if (user) localStorage.setItem('flight_scout_user', JSON.stringify(user));
