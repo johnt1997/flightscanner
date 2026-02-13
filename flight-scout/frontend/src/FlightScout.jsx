@@ -1165,23 +1165,27 @@ export default function FlightScout() {
                             return (
                               <div key={i}>
                                 <div className="deal-row">
-                                  <a href={deal.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                    <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '0.85rem', fontWeight: 600, color: getPriceColor(deal.price), minWidth: '42px' }}>
-                                      {deal.price.toFixed(0)}€
-                                    </span>
-                                    <span style={{ color: t.textMuted, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-                                      {formatDateFull(deal.departure_date)} – {formatDateFull(deal.return_date)}
-                                      {(() => { const wk = `${deal.latitude?.toFixed(1)}_${deal.longitude?.toFixed(1)}_${deal.departure_date}`; const w = weatherCache[wk]; return w && w.code != null ? <span title={`${w.temp != null ? w.temp + '°C, ' : ''}${getWeatherLabel(w.code)}`} style={{ cursor: 'default' }}> {getWeatherIcon(w.code)}</span> : ''; })()}
-                                    </span>
-                                    {deal.flight_time && deal.flight_time !== '??:??' && (
-                                      <span style={{ color: deal.early_departure ? '#f59e0b' : t.textDim, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                                        {deal.early_departure && '☀ '}{deal.flight_time}
-                                        {deal.return_flight_time && deal.return_flight_time !== '??:??' && ` / ${deal.return_flight_time}`}
+                                  <a href={deal.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                      <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '0.85rem', fontWeight: 600, color: getPriceColor(deal.price), minWidth: '42px' }}>
+                                        {deal.price.toFixed(0)}€
                                       </span>
-                                    )}
-                                    <span style={{ color: t.textDim, fontSize: '0.8rem' }}>ab {deal.origin}</span>
-                                    {deal.early_departure && <span style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '0.1rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600 }}>Früh</span>}
-                                    {deal.is_direct && <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '0.1rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600 }}>Direkt</span>}
+                                      <span style={{ color: t.textMuted, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                                        {formatDateFull(deal.departure_date)} – {formatDateFull(deal.return_date)}
+                                      </span>
+                                      {(() => { const wk = `${deal.latitude?.toFixed(1)}_${deal.longitude?.toFixed(1)}_${deal.departure_date}`; const w = weatherCache[wk]; return w && w.code != null ? <span title={`${w.temp != null ? w.temp + '°C, ' : ''}${getWeatherLabel(w.code)}`} style={{ cursor: 'default', fontSize: '0.85rem' }}>{getWeatherIcon(w.code)}</span> : null; })()}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+                                      {deal.flight_time && deal.flight_time !== '??:??' && (
+                                        <span style={{ color: deal.early_departure ? '#f59e0b' : t.textDim, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                                          {deal.early_departure && '☀ '}{deal.flight_time}
+                                          {deal.return_flight_time && deal.return_flight_time !== '??:??' && ` / ${deal.return_flight_time}`}
+                                        </span>
+                                      )}
+                                      <span style={{ color: t.textDim, fontSize: '0.8rem' }}>ab {deal.origin}</span>
+                                      {deal.early_departure && <span style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '0.1rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600 }}>Früh</span>}
+                                      {deal.is_direct && <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '0.1rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600 }}>Direkt</span>}
+                                    </div>
                                   </a>
                                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
                                     {alts.length > 0 && (
