@@ -102,6 +102,19 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
+
+        CREATE TABLE IF NOT EXISTS public_deals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            airport_code TEXT NOT NULL,
+            city TEXT NOT NULL,
+            country TEXT NOT NULL,
+            price REAL NOT NULL,
+            departure_date TEXT,
+            return_date TEXT,
+            url TEXT,
+            sky_code TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
     """)
     conn.close()
 
@@ -463,6 +476,42 @@ def delete_saved_search(user_id: int, search_id: int) -> bool:
     deleted = cursor.rowcount > 0
     conn.close()
     return deleted
+
+
+# --- Public Deals ---
+
+def save_public_deals(deals_by_airport: dict):
+    """Replace all public deals with fresh data. deals_by_airport = {airport_code: [deal_dicts]}"""
+    conn = get_db()
+    conn.execute("DELETE FROM public_deals")
+    for airport_code, deals in deals_by_airport.items():
+        for d in deals[:15]:
+            conn.execute(
+                """INSERT INTO public_deals (airport_code, city, country, price, departure_date, return_date, url, sky_code)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (airport_code, d["city"], d["country"], d["price"],
+                 d.get("departure_date", ""), d.get("return_date", ""), d.get("url", ""), d.get("sky_code", ""))
+            )
+    conn.commit()
+    conn.close()
+
+
+def get_public_deals() -> dict:
+    """Get public deals grouped by airport, sorted by price. Returns {airport_code: [deals], updated_at: str}"""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM public_deals WHERE created_at > datetime('now', '-7 days') ORDER BY airport_code, price ASC"
+    ).fetchall()
+    updated = conn.execute("SELECT MAX(created_at) as latest FROM public_deals").fetchone()
+    conn.close()
+    grouped = {}
+    for r in rows:
+        d = dict(r)
+        ap = d.pop("airport_code")
+        if ap not in grouped:
+            grouped[ap] = []
+        grouped[ap].append(d)
+    return {"deals": grouped, "updated_at": updated["latest"] if updated else None}
 
 
 # Init DB on import

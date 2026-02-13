@@ -36,14 +36,11 @@ def send_telegram_message(chat_id: str, message: str) -> bool:
 
 
 def run_daily_alert_check():
-    """Check all active alerts using Everywhere search."""
-    from database import get_all_active_deal_alerts
+    """Check all airports for public deals + send Telegram alerts to users with active alerts."""
+    from database import get_all_active_deal_alerts, save_public_deals
     from scraper import SkyscannerAPI
 
     alerts = get_all_active_deal_alerts()
-    if not alerts:
-        print("[ALERT] Keine aktiven Alerts")
-        return
 
     # Group alerts by airport
     alerts_by_airport = {}
@@ -53,7 +50,7 @@ def run_daily_alert_check():
             alerts_by_airport[ap] = []
         alerts_by_airport[ap].append(alert)
 
-    print(f"[ALERT] {len(alerts)} Alert(s) für {len(alerts_by_airport)} Airport(s)")
+    print(f"[ALERT] {len(alerts)} Alert(s), crawle alle {len(AIRPORTS)} Airports für Public Deals")
 
     # Check next 4 weekends (Fr-So)
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -67,17 +64,18 @@ def run_daily_alert_check():
         weekends.append((friday, sunday))
         current += timedelta(days=7)
 
-    for airport_code, airport_alerts in alerts_by_airport.items():
-        if airport_code not in AIRPORTS:
-            continue
-        airport = AIRPORTS[airport_code]
+    # Collect public deals for all airports
+    public_deals_by_airport = {}
 
+    for airport_code, airport in AIRPORTS.items():
         scraper = SkyscannerAPI(
             origin_entity_id=airport["id"],
             adults=1,
             start_hour=0,
             origin_sky_code=airport["code"],
         )
+
+        airport_alerts = alerts_by_airport.get(airport_code, [])
 
         for friday, sunday in weekends:
             data = scraper.search_flights(friday, sunday)
@@ -86,39 +84,78 @@ def run_daily_alert_check():
 
             results = data.get("everywhereDestination", {}).get("results", [])
 
-            for alert in airport_alerts:
-                max_price = alert["max_price"]
-                chat_id = alert["telegram_chat_id"]
+            for result in results:
+                if result.get("type") != "LOCATION":
+                    continue
+                content = result.get("content", {})
+                location = content.get("location", {})
+                fq = content.get("flightQuotes", {})
+                if not fq:
+                    continue
+                raw_price = fq.get("cheapest", {}).get("rawPrice", 9999)
+                city_name = location.get("name", "?")
+                country_name = location.get("countryName", "")
+                sky_code = location.get("skyCode", "")
+                url = (
+                    f"https://www.skyscanner.at/transport/fluge/{airport_code}/{sky_code.lower()}/"
+                    f"{friday.strftime('%y%m%d')}/{sunday.strftime('%y%m%d')}/"
+                    f"?adultsv2=1&cabinclass=economy&rtn=1&preferdirects=true"
+                )
 
-                cheap_deals = []
-                for result in results:
-                    if result.get("type") != "LOCATION":
-                        continue
-                    content = result.get("content", {})
-                    location = content.get("location", {})
-                    fq = content.get("flightQuotes", {})
-                    if not fq:
-                        continue
-                    raw_price = fq.get("cheapest", {}).get("rawPrice", 9999)
-                    if raw_price <= max_price:
-                        city_name = location.get("name", "?")
-                        sky_code = location.get("skyCode", "")
-                        url = (
-                            f"https://www.skyscanner.at/transport/fluge/{airport_code}/{sky_code.lower()}/"
-                            f"{friday.strftime('%y%m%d')}/{sunday.strftime('%y%m%d')}/"
-                            f"?adultsv2=1&cabinclass=economy&rtn=1&preferdirects=true"
-                        )
-                        cheap_deals.append({"city": city_name, "price": raw_price, "url": url})
+                # Collect for public deals (under 100€)
+                if raw_price <= 100:
+                    if airport_code not in public_deals_by_airport:
+                        public_deals_by_airport[airport_code] = []
+                    public_deals_by_airport[airport_code].append({
+                        "city": city_name, "country": country_name, "price": raw_price,
+                        "departure_date": friday.strftime("%Y-%m-%d"), "return_date": sunday.strftime("%Y-%m-%d"),
+                        "url": url, "sky_code": sky_code,
+                    })
 
-                if cheap_deals:
-                    cheap_deals.sort(key=lambda x: x["price"])
-                    date_str = f"{friday.strftime('%d.%m.')} – {sunday.strftime('%d.%m.')}"
-                    lines = [f"✈️ <b>Flight Scout Alert</b> — {date_str}\nAb {airport['name']}, unter {max_price:.0f}€:\n"]
-                    for d in cheap_deals[:10]:
-                        lines.append(f"• <b>{d['city']}</b> {d['price']:.0f}€ — <a href=\"{d['url']}\">Buchen</a>")
-                    send_telegram_message(chat_id, "\n".join(lines))
+                # Send Telegram alerts for matching user alerts
+                for alert in airport_alerts:
+                    if raw_price <= alert["max_price"]:
+                        if not hasattr(alert, '_deals'):
+                            alert['_deals'] = []
+                        alert['_deals'].append({"city": city_name, "price": raw_price, "url": url,
+                                                "date_str": f"{friday.strftime('%d.%m.')} – {sunday.strftime('%d.%m.')}"})
 
             time.sleep(1)  # Pause between weekends
+
+    # Send Telegram messages for user alerts
+    for airport_code, airport_alerts in alerts_by_airport.items():
+        airport = AIRPORTS.get(airport_code)
+        if not airport:
+            continue
+        for alert in airport_alerts:
+            deals = alert.get('_deals', [])
+            if not deals:
+                continue
+            deals.sort(key=lambda x: x["price"])
+            chat_id = alert["telegram_chat_id"]
+            max_price = alert["max_price"]
+            # Group by date
+            by_date = {}
+            for d in deals:
+                by_date.setdefault(d["date_str"], []).append(d)
+            for date_str, date_deals in by_date.items():
+                lines = [f"✈️ <b>Flight Scout Alert</b> — {date_str}\nAb {airport['name']}, unter {max_price:.0f}€:\n"]
+                for d in date_deals[:10]:
+                    lines.append(f"• <b>{d['city']}</b> {d['price']:.0f}€ — <a href=\"{d['url']}\">Buchen</a>")
+                send_telegram_message(chat_id, "\n".join(lines))
+
+    # Deduplicate public deals (keep cheapest per city per airport) and save
+    for ap_code in public_deals_by_airport:
+        seen = {}
+        for d in sorted(public_deals_by_airport[ap_code], key=lambda x: x["price"]):
+            key = d["city"]
+            if key not in seen:
+                seen[key] = d
+        public_deals_by_airport[ap_code] = list(seen.values())
+
+    save_public_deals(public_deals_by_airport)
+    total = sum(len(v) for v in public_deals_by_airport.values())
+    print(f"[ALERT] {total} Public Deals gespeichert für {len(public_deals_by_airport)} Airport(s)")
 
 
 def start_alert_scheduler():

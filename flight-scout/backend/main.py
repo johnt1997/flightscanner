@@ -25,6 +25,7 @@ from database import (
     create_deal_alert, get_user_deal_alerts, delete_deal_alert,
     save_search, get_user_searches, get_saved_search, update_search_results, delete_saved_search,
     log_search, get_all_users, get_search_log,
+    get_public_deals,
 )
 from alerts import start_alert_scheduler
 
@@ -152,6 +153,21 @@ def get_cities():
             cities[country] = []
         cities[country].append(name)
     return {"cities": cities}
+
+
+@app.get("/top-deals")
+def top_deals():
+    """Public endpoint: top deals from weekly crawl for landing page."""
+    data = get_public_deals()
+    # Enrich with airport names
+    enriched = {}
+    for ap_code, deals in data.get("deals", {}).items():
+        if ap_code in AIRPORTS:
+            enriched[ap_code] = {
+                "name": AIRPORTS[ap_code]["name"],
+                "deals": deals,
+            }
+    return {"airports": enriched, "updated_at": data.get("updated_at")}
 
 
 # --- Auth Endpoints ---

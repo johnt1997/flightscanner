@@ -215,6 +215,10 @@ export default function FlightScout() {
   const [saveSearchError, setSaveSearchError] = useState('');
 
 
+  // Public deals (landing page)
+  const [publicDeals, setPublicDeals] = useState(null);
+  const [loadingPublicDeals, setLoadingPublicDeals] = useState(false);
+
   // Share toast
   const [showShareToast, setShowShareToast] = useState(false);
 
@@ -298,6 +302,18 @@ export default function FlightScout() {
   // Persist theme
   useEffect(() => { localStorage.setItem('flight_scout_theme', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('flight_scout_favorites', JSON.stringify(favorites)); }, [favorites]);
+
+  // Fetch public deals for landing page
+  useEffect(() => {
+    if (!user && results.length === 0) {
+      setLoadingPublicDeals(true);
+      fetch(`${API_URL}/top-deals`)
+        .then(r => r.json())
+        .then(data => setPublicDeals(data))
+        .catch(() => setPublicDeals(null))
+        .finally(() => setLoadingPublicDeals(false));
+    }
+  }, []);
 
   // Smart sync: startDate -> endDate (same month end), startWeekday, duration
   useEffect(() => {
@@ -768,6 +784,8 @@ export default function FlightScout() {
         @keyframes dealSlideOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(120%); } }
         .deal-toast { animation: dealSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .deal-toast.exiting { animation: dealSlideOut 0.4s ease-in forwards; }
+        .landing-deal-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.15); }
+        .landing-deal-card:hover div[style*="opacity: 0.3"] { opacity: 0.7 !important; }
         @keyframes progressPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         .progress-fill { animation: progressPulse 2s ease-in-out infinite; }
         .date-pill { padding: 0.35rem 0.7rem; border-radius: 8px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
@@ -806,6 +824,168 @@ export default function FlightScout() {
           </div>
         </div>
 
+        {/* === LANDING PAGE === */}
+        {!user && results.length === 0 ? (
+          <>
+            {/* Hero */}
+            <div style={{
+              textAlign: 'center', padding: '2rem 1rem 3rem',
+              background: `radial-gradient(ellipse at 50% 0%, ${theme === 'dark' ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.08)'} 0%, transparent 70%)`,
+              borderRadius: '24px', marginBottom: '2.5rem',
+            }}>
+              <p style={{ fontSize: '1.1rem', color: t.textMuted, maxWidth: '520px', margin: '0 auto 2rem', lineHeight: 1.6 }}>
+                Jedes Wochenende die billigsten Flüge ab Wien, Bratislava & Budapest — automatisch gescannt.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button onClick={() => { setAuthMode('register'); setShowAuth(true); }} className="btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '1.05rem' }}>
+                  Kostenlos registrieren
+                </button>
+                <button onClick={() => { setAuthMode('login'); setShowAuth(true); }} style={{
+                  background: t.chipBg, border: `1px solid ${t.inputBorder}`, borderRadius: '12px',
+                  padding: '0.75rem 2rem', color: t.text, cursor: 'pointer', fontSize: '1.05rem',
+                }}>
+                  Anmelden
+                </button>
+              </div>
+            </div>
+
+            {/* Public Deals */}
+            {loadingPublicDeals && (
+              <div style={{ textAlign: 'center', padding: '3rem', color: t.textMuted }}>
+                <div style={{ fontSize: '2rem', marginBottom: '1rem', animation: 'pulse 1.5s infinite' }}>&#9992;</div>
+                Lade Top-Deals...
+              </div>
+            )}
+
+            {publicDeals && publicDeals.airports && Object.keys(publicDeals.airports).length > 0 ? (
+              <>
+                {Object.entries(publicDeals.airports).map(([apCode, apData]) => (
+                  <div key={apCode} style={{ marginBottom: '2.5rem' }}>
+                    {/* Airport Header */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem',
+                      padding: '0 0.25rem',
+                    }}>
+                      <Flag cc={AIRPORTS[apCode]?.cc} size={22} />
+                      <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 700 }}>Ab {apData.name}</h2>
+                      <span style={{
+                        background: 'rgba(99,102,241,0.15)', color: '#a5b4fc',
+                        padding: '0.2rem 0.65rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600,
+                      }}>
+                        {apData.deals.length} Deals
+                      </span>
+                    </div>
+
+                    {/* Deal Cards Grid */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                      gap: '1rem',
+                    }}>
+                      {apData.deals.map((deal, i) => {
+                        const priceRatio = deal.price / 100;
+                        const priceColor = priceRatio < 0.3 ? '#22c55e' : priceRatio < 0.5 ? '#84cc16' : priceRatio < 0.7 ? '#eab308' : '#f97316';
+                        const depDate = deal.departure_date ? new Date(deal.departure_date) : null;
+                        const retDate = deal.return_date ? new Date(deal.return_date) : null;
+                        const dateStr = depDate && retDate
+                          ? `${depDate.toLocaleDateString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit' })} – ${retDate.toLocaleDateString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit' })}`
+                          : '';
+                        const cc = COUNTRY_CC[deal.country];
+
+                        return (
+                          <a
+                            key={i}
+                            href={deal.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="landing-deal-card"
+                            style={{
+                              display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                              background: theme === 'dark'
+                                ? `linear-gradient(135deg, rgba(255,255,255,0.04) 0%, ${priceColor}08 100%)`
+                                : `linear-gradient(135deg, rgba(255,255,255,0.8) 0%, ${priceColor}12 100%)`,
+                              border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                              borderRadius: '16px', padding: '1.25rem',
+                              textDecoration: 'none', color: 'inherit',
+                              transition: 'all 0.25s ease',
+                              cursor: 'pointer',
+                              position: 'relative',
+                              overflow: 'hidden',
+                              minHeight: '130px',
+                            }}
+                          >
+                            {/* Subtle glow accent */}
+                            <div style={{
+                              position: 'absolute', top: '-20px', right: '-20px', width: '80px', height: '80px',
+                              background: `radial-gradient(circle, ${priceColor}20 0%, transparent 70%)`,
+                              borderRadius: '50%', pointerEvents: 'none',
+                            }} />
+
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                <Flag cc={cc} size={18} />
+                                <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{deal.city}</span>
+                              </div>
+                              <div style={{ fontSize: '0.8rem', color: t.textMuted }}>
+                                {shortCountry(deal.country)}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.75rem' }}>
+                              <div style={{ fontSize: '0.75rem', color: t.textDim }}>{dateStr}</div>
+                              <div style={{
+                                fontFamily: 'Space Mono, monospace', fontWeight: 700, fontSize: '1.4rem',
+                                color: priceColor, lineHeight: 1,
+                              }}>
+                                {Math.round(deal.price)}€
+                              </div>
+                            </div>
+
+                            {/* Arrow indicator */}
+                            <div style={{
+                              position: 'absolute', bottom: '1rem', right: '1rem',
+                              opacity: 0.3, fontSize: '0.8rem', transition: 'opacity 0.2s',
+                            }}>&#8599;</div>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+
+                {publicDeals.updated_at && (
+                  <div style={{ textAlign: 'center', color: t.textDim, fontSize: '0.8rem', marginTop: '0.5rem', marginBottom: '2rem' }}>
+                    Zuletzt aktualisiert: {new Date(publicDeals.updated_at + 'Z').toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+              </>
+            ) : (!loadingPublicDeals && (
+              <div className="glass" style={{ textAlign: 'center', padding: '3rem', marginBottom: '2rem' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>&#9992;</div>
+                <h3 style={{ margin: '0 0 0.5rem 0' }}>Noch keine Deals</h3>
+                <p style={{ color: t.textMuted, margin: 0 }}>Die ersten Deals werden am Montag gescannt — schau dann wieder rein!</p>
+              </div>
+            ))}
+
+            {/* CTA Bottom */}
+            <div className="glass" style={{
+              textAlign: 'center', padding: '2.5rem', marginTop: '1rem',
+              background: theme === 'dark'
+                ? 'linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(139,92,246,0.05) 100%)'
+                : 'linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(139,92,246,0.04) 100%)',
+              border: `1px solid ${theme === 'dark' ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.15)'}`,
+            }}>
+              <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.25rem' }}>Mehr entdecken</h3>
+              <p style={{ color: t.textMuted, margin: '0 0 1.5rem 0', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
+                Registriere dich kostenlos für eigene Suchen, Kalender-Heatmap, Archiv & Telegram-Alerts.
+              </p>
+              <button onClick={() => { setAuthMode('register'); setShowAuth(true); }} className="btn-primary" style={{ padding: '0.75rem 2.5rem', fontSize: '1.05rem' }}>
+                Jetzt registrieren
+              </button>
+            </div>
+          </>
+        ) : (
+        <>
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           {[['search', 'Suche'], ['heatmap', 'Heatmap'], ['calendar', 'Kalender'], ['archive', 'Archiv'], ['about', 'About'], ...(user && user.username === 'john1997' ? [['admin', 'Admin']] : [])].map(([key, label]) => (
@@ -1468,6 +1648,8 @@ export default function FlightScout() {
 
         {/* Footer */}
         <div style={{ textAlign: 'center', marginTop: '3rem', color: t.textDim, fontSize: '0.875rem' }}>Flight Scout</div>
+        </>
+        )}
       </div>
 
       {/* Auth Modal */}
