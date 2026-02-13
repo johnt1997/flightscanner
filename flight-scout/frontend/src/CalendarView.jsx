@@ -235,6 +235,7 @@ export default function CalendarView({ airports, maxPrice, duration, adults, bla
             <span><span style={{ color: '#22c55e' }}>●</span> Günstig</span>
             <span><span style={{ color: '#eab308' }}>●</span> Mittel</span>
             <span><span style={{ color: '#ef4444' }}>●</span> Teuer</span>
+            <span style={{ opacity: 0.6 }}>Preise p.P. · Hin+Rück</span>
           </div>
         </div>
       )}

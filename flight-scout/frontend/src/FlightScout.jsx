@@ -1143,6 +1143,7 @@ export default function FlightScout() {
                             {group.cheapest.toFixed(0)}€
                           </div>
                           <div style={{ fontSize: '0.7rem', color: t.textDim }}>{group.deals.length} {group.deals.length === 1 ? 'Termin' : 'Termine'}</div>
+                          <div style={{ fontSize: '0.6rem', color: t.textDim, opacity: 0.6 }}>p.P. · Hin+Rück</div>
                         </div>
                         {/* Spalte 4: Arrow */}
                         <span style={{ color: t.textDim, fontSize: '1rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
