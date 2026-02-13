@@ -371,7 +371,7 @@ export default function FlightScout() {
     } catch (e) { setAuthError('Verbindung fehlgeschlagen'); }
   };
 
-  const logout = () => { setUser(null); setSavedDeals([]); };
+  const logout = () => { setUser(null); setSavedDeals([]); setResults([]); localStorage.removeItem('fs_last_results'); };
 
   // --- Saved Deals ---
   const loadSavedDeals = async () => {
