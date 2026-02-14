@@ -1344,8 +1344,14 @@ export default function FlightScout() {
               >
                 <span style={{ fontSize: '0.75rem', transition: 'transform 0.2s', transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
                 Erweiterte Optionen
-                {(startWeekday !== 4 || minDepartureHour !== 14 || blacklistCountries.length > 0) && (
-                  <span style={{ background: '#6366f1', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', color: 'white', fontWeight: 500 }}>angepasst</span>
+                {startWeekday !== 4 && (
+                  <span style={{ background: '#6366f1', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', color: 'white', fontWeight: 500 }}>{WEEKDAYS[startWeekday]}</span>
+                )}
+                {minDepartureHour !== 14 && (
+                  <span style={{ background: '#6366f1', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', color: 'white', fontWeight: 500 }}>ab {minDepartureHour}:00</span>
+                )}
+                {blacklistCountries.length > 0 && (
+                  <span style={{ background: '#6366f1', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', color: 'white', fontWeight: 500 }}>{blacklistCountries.length} blockiert</span>
                 )}
               </div>
 
