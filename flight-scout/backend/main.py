@@ -299,10 +299,10 @@ def delete_search_endpoint(search_id: int, request: Request):
 
 # --- Search Endpoints ---
 
-# Rate limiting: max 3 searches per user per hour
+# Rate limiting: max 10 searches per user per 30 minutes
 search_history: dict[int, list[float]] = {}  # user_id -> list of timestamps
 calendar_history: dict[int, list[float]] = {}  # user_id -> list of timestamps
-SEARCH_LIMIT = 3
+SEARCH_LIMIT = 10
 CALENDAR_LIMIT = 1
 SEARCH_WINDOW = 1800  # 30 minutes in seconds
 ADMIN_USERS = {"john1997"}  # No rate limit for these users
