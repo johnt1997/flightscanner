@@ -47,7 +47,7 @@ AIRPORTS = {
     "vie": {"id": "95673444", "name": "Wien", "code": "vie"},
     "bts": {"id": "95673445", "name": "Bratislava", "code": "bts"},
     "bud": {"id": "95673439", "name": "Budapest", "code": "bud"},
-    "zur": {"id": "95673856", "name": "Zürich", "code": "zur"}, 
+    "zur": {"id": "95673856", "name": "Zürich", "code": "zrh"}, 
     
 }
 
