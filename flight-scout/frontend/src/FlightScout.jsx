@@ -7,7 +7,7 @@ const AIRPORTS = {
   vie: { name: 'Wien', cc: 'at', color: '#dc2626' },
   bts: { name: 'Bratislava', cc: 'sk', color: '#2563eb' },
   bud: { name: 'Budapest', cc: 'hu', color: '#16a34a' },
-  zur: {name: 'Zürich', cc: 'zu', color: '#f60e5d'}, 
+  zur: {name: 'Zürich', cc: 'ch', color: '#f60e5d'}, 
 };
 
 const COUNTRY_CC = {
