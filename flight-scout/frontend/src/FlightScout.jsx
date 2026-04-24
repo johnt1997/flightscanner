@@ -87,6 +87,15 @@ const COUNTRIES = [
   'Italien', 'Bulgarien', 'Schweiz', 'Polen', 'Lettland', 'Deutschland'
 ];
 
+// Preset = vordefinierte Wochentag/Dauer-Kombinationen
+const PRESETS = {
+  weekend:     { weekday: 4, durations: [2],    label: 'Wochenende',   sub: 'Fr → So' },
+  longWeekend: { weekday: 4, durations: [3],    label: 'Verlängert',   sub: 'Fr → Mo' },
+  midweek:     { weekday: 1, durations: [2],    label: 'Wochenmitte',  sub: 'Di → Do' },
+  weekly:      { weekday: 0, durations: [7],    label: 'Wochentrip',   sub: 'Mo → Mo' },
+};
+const PRESET_KEYS = ['weekend', 'longWeekend', 'midweek', 'weekly'];
+
 export default function FlightScout() {
   // Theme
   const [theme, setTheme] = useState(() => localStorage.getItem('flight_scout_theme') || 'dark');
@@ -106,15 +115,17 @@ export default function FlightScout() {
   });
   const [startWeekday, setStartWeekday] = useState(4);
   const [durations, setDurations] = useState([2]);
-  const [flexibleDuration, setFlexibleDuration] = useState(false);
+  const [preset, setPreset] = useState('weekend'); // 'weekend' | 'longWeekend' | 'midweek' | 'weekly' | 'custom'
   const [adults, setAdults] = useState(1);
   const [maxPrice, setMaxPrice] = useState(70);
   const [minDepartureHour, setMinDepartureHour] = useState(14);
   const [maxReturnHour, setMaxReturnHour] = useState(23);
   const [blacklistCountries, setBlacklistCountries] = useState([]);
-  const [searchMode, setSearchMode] = useState('everywhere'); // 'everywhere' | 'cities'
   const [selectedCities, setSelectedCities] = useState([]);
   const [cityFilter, setCityFilter] = useState('');
+  const [showAllCities, setShowAllCities] = useState(false);
+  // Modus wird automatisch abgeleitet: leere Stadt-Liste = Überall, sonst gezielt
+  const searchMode = selectedCities.length > 0 ? 'cities' : 'everywhere';
   const [activeTab, setActiveTab] = useState('search');
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminSearches, setAdminSearches] = useState([]);
@@ -442,8 +453,8 @@ export default function FlightScout() {
       setAdults(p.adults || 1);
       setMaxPrice(p.max_price || 70);
       setMinDepartureHour(p.min_departure_hour ?? 14);
-      setSearchMode(p.search_mode || 'everywhere');
       setSelectedCities(p.selected_cities || []);
+      setPreset('custom');
       setBlacklistCountries(p.blacklist_countries || []);
       setResults(data.results || []);
       setActiveTab('search');
@@ -591,7 +602,28 @@ export default function FlightScout() {
 
   const isAdmin = user?.username === 'john1997';
   const MAX_CITIES = isAdmin ? 999 : 3;
-  const MAX_DURATIONS = isAdmin ? 999 : (flexibleDuration ? 1 : 2);
+  const MAX_DURATIONS = isAdmin ? 999 : 3;
+
+  const applyPreset = (key) => {
+    const p = PRESETS[key];
+    if (!p) return;
+    setPreset(key);
+    setStartWeekday(p.weekday);
+    setDurations(p.durations);
+    // startDate auf nächstes Vorkommen des neuen Wochentags ziehen
+    if (startDate) {
+      const d = new Date(startDate + 'T00:00:00');
+      if (!isNaN(d.getTime())) {
+        const jsTarget = p.weekday === 6 ? 0 : p.weekday + 1;
+        let diff = jsTarget - d.getDay();
+        if (diff < 0) diff += 7;
+        if (diff > 0) {
+          d.setDate(d.getDate() + diff);
+          setStartDate(d.toISOString().split('T')[0]);
+        }
+      }
+    }
+  };
 
   const toggleCity = (city) => {
     setSelectedCities(prev => {
@@ -615,10 +647,7 @@ export default function FlightScout() {
   };
 
   const toggleDuration = (dur) => {
-    if (flexibleDuration) {
-      setDurations([dur]);
-      return;
-    }
+    setPreset('custom');
     setDurations(prev => {
       if (prev.includes(dur)) {
         if (prev.length === 1) return prev;
@@ -652,9 +681,7 @@ export default function FlightScout() {
         body: JSON.stringify({
           airports: selectedAirports, start_date: startDate, end_date: endDate,
           start_weekday: startWeekday,
-          durations: flexibleDuration
-            ? [...new Set(durations.flatMap(d => [d - 1, d, d + 1]).filter(d => d >= 1 && d <= 7))].sort((a, b) => a - b)
-            : durations,
+          durations,
           adults, max_price: maxPrice,
           min_departure_hour: minDepartureHour, max_return_hour: maxReturnHour,
           blacklist_countries: blacklistCountries,
@@ -1101,6 +1128,39 @@ export default function FlightScout() {
         {activeTab === 'search' && (
           <>
           <div className="glass" style={{ padding: '2rem', marginBottom: '2rem' }}>
+            {/* Preset Picker – ganz oben */}
+            <div style={{ marginBottom: '2rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>Wann willst du weg?</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                {PRESET_KEYS.map(key => {
+                  const p = PRESETS[key];
+                  const active = preset === key;
+                  return (
+                    <div key={key} onClick={() => applyPreset(key)}
+                      style={{
+                        padding: '1rem 0.75rem', borderRadius: '14px', cursor: 'pointer', textAlign: 'center',
+                        background: active ? 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.18))' : t.chipBg,
+                        border: active ? '1.5px solid #6366f1' : `1.5px solid ${t.inputBorder}`,
+                        transition: 'all 0.2s ease',
+                      }}>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: active ? '#a5b4fc' : t.text, marginBottom: '0.2rem' }}>{p.label}</div>
+                      <div style={{ fontSize: '0.78rem', color: t.textDim, fontFamily: 'Space Mono, monospace' }}>{p.sub}</div>
+                    </div>
+                  );
+                })}
+                <div onClick={() => setPreset('custom')}
+                  style={{
+                    padding: '1rem 0.75rem', borderRadius: '14px', cursor: 'pointer', textAlign: 'center',
+                    background: preset === 'custom' ? 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.18))' : t.chipBg,
+                    border: preset === 'custom' ? '1.5px solid #6366f1' : `1.5px solid ${t.inputBorder}`,
+                    transition: 'all 0.2s ease',
+                  }}>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: preset === 'custom' ? '#a5b4fc' : t.text, marginBottom: '0.2rem' }}>Eigene</div>
+                  <div style={{ fontSize: '0.78rem', color: t.textDim, fontFamily: 'Space Mono, monospace' }}>Selbst wählen</div>
+                </div>
+              </div>
+            </div>
+
             {/* Airports */}
             <div style={{ marginBottom: '2rem' }}>
               <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>Abflughäfen</label>
@@ -1117,116 +1177,109 @@ export default function FlightScout() {
               </div>
             </div>
 
-            {/* Search Mode Toggle */}
+            {/* Destination Picker – Überall by default, optional Stadt-Chips */}
             <div style={{ marginBottom: '2rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>Suchmodus</label>
-              <div style={{ display: 'flex', gap: '0', borderRadius: '14px', overflow: 'hidden', border: `1px solid ${t.inputBorder}`, width: 'fit-content' }}>
-                <button onClick={() => setSearchMode('everywhere')}
-                  style={{
-                    padding: '0.75rem 1.5rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem',
-                    background: searchMode === 'everywhere' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : t.chipBg,
-                    color: searchMode === 'everywhere' ? 'white' : t.text, transition: 'all 0.2s ease',
-                  }}>
-                  Überall
-                </button>
-                <button onClick={() => setSearchMode('cities')}
-                  style={{
-                    padding: '0.75rem 1.5rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem',
-                    borderLeft: `1px solid ${t.inputBorder}`,
-                    background: searchMode === 'cities' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : t.chipBg,
-                    color: searchMode === 'cities' ? 'white' : t.text, transition: 'all 0.2s ease',
-                  }}>
-                  Gezielte Städte
-                  {searchMode === 'cities' && selectedCities.length > 0 && (
-                    <span style={{ marginLeft: '0.5rem', background: 'rgba(255,255,255,0.25)', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.8rem' }}>
-                      {selectedCities.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-              <p style={{ fontSize: '0.85rem', color: t.textDim, margin: '0.5rem 0 0 0' }}>
-                {searchMode === 'everywhere'
-                  ? 'Durchsucht alle Destinationen weltweit nach günstigen Deals'
-                  : 'Sucht gezielt nach bestimmten Städten – schneller & exakter'}
-              </p>
-            </div>
+              <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>Wohin?</label>
 
-            {/* City Picker (nur im City-Modus) */}
-            {searchMode === 'cities' && (
-              <div style={{ marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <label style={{ fontWeight: 600, color: t.textMuted }}>
-                    Städte auswählen
-                    {selectedCities.length > 0 && (
-                      <span style={{ marginLeft: '0.5rem', background: '#6366f1', padding: '0.25rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', color: 'white' }}>
-                        {selectedCities.length} ausgewählt
-                      </span>
-                    )}
-                  </label>
-                  {selectedCities.length > 0 && (
-                    <button onClick={() => setSelectedCities([])}
-                      style={{ background: 'none', border: `1px solid ${t.inputBorder}`, borderRadius: '8px', padding: '0.3rem 0.6rem', color: t.textMuted, cursor: 'pointer', fontSize: '0.8rem' }}>
-                      Alle abwählen
-                    </button>
-                  )}
+              {/* Empty state: Überall badge */}
+              {selectedCities.length === 0 && (
+                <div style={{
+                  padding: '0.65rem 1rem', borderRadius: '12px', marginBottom: '0.75rem',
+                  background: 'rgba(99, 102, 241, 0.08)', border: '1px dashed rgba(99, 102, 241, 0.3)',
+                  fontSize: '0.88rem', color: t.textMuted,
+                }}>
+                  <b style={{ color: '#a5b4fc' }}>Überall</b> · Wir scannen alle Destinationen weltweit
                 </div>
+              )}
 
-                {/* Search filter */}
+              {/* Selected city chips */}
+              {selectedCities.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem', alignItems: 'center' }}>
+                  {selectedCities.map(city => (
+                    <span key={city} onClick={() => toggleCity(city)}
+                      style={{ padding: '0.4rem 0.85rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600,
+                        background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)',
+                        color: '#a5b4fc', cursor: 'pointer' }}>
+                      {city} ×
+                    </span>
+                  ))}
+                  <button onClick={() => setSelectedCities([])}
+                    style={{ background: 'none', border: 'none', color: t.textDim, cursor: 'pointer', fontSize: '0.8rem', padding: '0.3rem 0.5rem' }}>
+                    alle entfernen
+                  </button>
+                </div>
+              )}
+
+              {/* Autocomplete input */}
+              <div style={{ position: 'relative', maxWidth: '380px' }}>
                 <input
                   type="text" value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}
-                  placeholder="Stadt suchen..." className="input-field"
-                  style={{ marginBottom: '0.75rem', maxWidth: '300px' }}
+                  placeholder={selectedCities.length === 0 ? 'Stadt eingeben für gezielte Suche...' : `Weitere Stadt hinzufügen (max ${MAX_CITIES})...`}
+                  className="input-field"
+                  disabled={selectedCities.length >= MAX_CITIES}
                 />
-
-                {/* Selected cities pills */}
-                {selectedCities.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
-                    {selectedCities.map(city => (
-                      <span key={city} onClick={() => toggleCity(city)}
-                        style={{ padding: '0.35rem 0.75rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600,
-                          background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)',
-                          color: '#a5b4fc', cursor: 'pointer', transition: 'all 0.15s ease' }}>
-                        {city} ×
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Cities grouped by country */}
-                <div style={{ background: t.pickerBg, borderRadius: '12px', padding: '1rem', maxHeight: '350px', overflowY: 'auto' }}>
-                  {Object.entries(CITY_DB)
-                    .filter(([country, cities]) => {
-                      if (!cityFilter) return true;
-                      const f = cityFilter.toLowerCase();
-                      return country.toLowerCase().includes(f) || cities.some(c => c.toLowerCase().includes(f));
-                    })
-                    .map(([country, cities]) => {
-                      const filteredCities = cityFilter
-                        ? cities.filter(c => c.toLowerCase().includes(cityFilter.toLowerCase()) || country.toLowerCase().includes(cityFilter.toLowerCase()))
-                        : cities;
-                      if (filteredCities.length === 0) return null;
-                      const allSelected = filteredCities.every(c => selectedCities.includes(c));
-                      return (
-                        <div key={country} style={{ marginBottom: '0.75rem' }}>
-                          <div onClick={() => selectCountryCities(country)}
-                            style={{ fontSize: '0.8rem', fontWeight: 700, color: allSelected ? '#6366f1' : t.textMuted, marginBottom: '0.35rem', cursor: 'pointer', transition: 'color 0.2s' }}>
-                            {country}
-                          </div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                            {filteredCities.map(city => (
-                              <div key={city} className={`country-chip ${selectedCities.includes(city) ? 'selected' : ''}`}
-                                onClick={() => toggleCity(city)}
-                                style={{ fontSize: '0.8rem', padding: '0.35rem 0.7rem' }}>
-                                {city}
-                              </div>
-                            ))}
-                          </div>
+                {cityFilter && (() => {
+                  const f = cityFilter.toLowerCase();
+                  const matches = ALL_CITIES
+                    .filter(({ city, country }) => !selectedCities.includes(city) && (city.toLowerCase().includes(f) || country.toLowerCase().includes(f)))
+                    .slice(0, 8);
+                  if (matches.length === 0) return null;
+                  return (
+                    <div style={{
+                      position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 10,
+                      background: t.modalBg, border: `1px solid ${t.inputBorder}`, borderRadius: '12px',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.25)', overflow: 'hidden',
+                    }}>
+                      {matches.map(({ city, country }) => (
+                        <div key={city} onClick={() => { toggleCity(city); setCityFilter(''); }}
+                          style={{
+                            padding: '0.6rem 0.85rem', cursor: 'pointer', fontSize: '0.9rem',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            borderBottom: `1px solid ${t.inputBorder}`,
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <span style={{ color: t.text, fontWeight: 500 }}>{city}</span>
+                          <span style={{ color: t.textDim, fontSize: '0.78rem' }}>{shortCountry(country)}</span>
                         </div>
-                      );
-                    })}
-                </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
-            )}
+
+              {/* Toggle: alle Städte gruppiert anzeigen */}
+              <div onClick={() => setShowAllCities(!showAllCities)}
+                style={{ marginTop: '0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', color: t.textDim, fontSize: '0.82rem' }}>
+                <span style={{ fontSize: '0.7rem', transition: 'transform 0.2s', transform: showAllCities ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                {showAllCities ? 'Liste zuklappen' : 'Alle Städte durchsuchen'}
+              </div>
+
+              {showAllCities && (
+                <div style={{ background: t.pickerBg, borderRadius: '12px', padding: '1rem', maxHeight: '300px', overflowY: 'auto', marginTop: '0.75rem' }}>
+                  {Object.entries(CITY_DB).map(([country, cities]) => {
+                    const allSelected = cities.every(c => selectedCities.includes(c));
+                    return (
+                      <div key={country} style={{ marginBottom: '0.75rem' }}>
+                        <div onClick={() => selectCountryCities(country)}
+                          style={{ fontSize: '0.8rem', fontWeight: 700, color: allSelected ? '#6366f1' : t.textMuted, marginBottom: '0.35rem', cursor: 'pointer' }}>
+                          {country}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                          {cities.map(city => (
+                            <div key={city} className={`country-chip ${selectedCities.includes(city) ? 'selected' : ''}`}
+                              onClick={() => toggleCity(city)}
+                              style={{ fontSize: '0.8rem', padding: '0.35rem 0.7rem' }}>
+                              {city}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Starttag (Wochentag) – prominent über dem Datum */}
             <div style={{ marginBottom: '1.5rem' }}>
@@ -1238,6 +1291,7 @@ export default function FlightScout() {
                   <div key={day} className={`weekday-btn ${i === startWeekday ? 'start' : ''}`}
                     onClick={() => {
                       setStartWeekday(i);
+                      setPreset('custom');
                       // Sync startDate to next occurrence of this weekday
                       if (startDate) {
                         const d = new Date(startDate + 'T00:00:00');
@@ -1283,32 +1337,11 @@ export default function FlightScout() {
               </div>
             </div>
 
-            {/* Duration Multi-Select */}
+            {/* Reisedauer */}
             <div style={{ marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <label style={{ fontWeight: 600, color: t.textMuted }}>
-                  Reisedauer (Nächte){!flexibleDuration && ' – mehrere auswählbar'}
-                </label>
-                <div
-                  onClick={() => {
-                    setFlexibleDuration(prev => {
-                      if (!prev && durations.length > 1) setDurations([durations[0]]);
-                      return !prev;
-                    });
-                  }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer',
-                    padding: '0.3rem 0.75rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600,
-                    background: flexibleDuration ? 'rgba(99,102,241,0.2)' : (theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                    border: flexibleDuration ? '1.5px solid #6366f1' : `1.5px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-                    color: flexibleDuration ? '#a5b4fc' : t.textMuted,
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <span style={{ fontSize: '0.75rem' }}>{flexibleDuration ? '~' : '~'}</span>
-                  Flexibel
-                </div>
-              </div>
+              <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>
+                Reisedauer (Nächte) <span style={{ fontWeight: 400, fontSize: '0.8rem', color: t.textDim }}>· mehrere für Vergleich auswählbar</span>
+              </label>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 {[1, 2, 3, 4, 5, 6, 7].map(n => (
                   <div key={n} className={`dur-chip ${durations.includes(n) ? 'selected' : ''}`}
@@ -1317,11 +1350,6 @@ export default function FlightScout() {
                   </div>
                 ))}
               </div>
-              {flexibleDuration && durations.length === 1 && (
-                <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#a5b4fc', opacity: 0.8 }}>
-                  Sucht {Math.max(1, durations[0] - 1)}–{Math.min(7, durations[0] + 1)} Nächte
-                </div>
-              )}
             </div>
 
             {/* Max Price */}
@@ -1404,9 +1432,7 @@ export default function FlightScout() {
 
             {/* Search Summary */}
             {startDate && endDate && selectedAirports.length > 0 && !isSearching && (() => {
-              const effDurations = flexibleDuration
-                ? [...new Set(durations.flatMap(d => [d - 1, d, d + 1]).filter(d => d >= 1 && d <= 7))].sort((a, b) => a - b)
-                : durations;
+              const effDurations = durations;
               const WD = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
               const pairs = effDurations.map(d => `${WD[startWeekday]}→${WD[(startWeekday + d) % 7]}`);
               const uniquePairs = [...new Set(pairs)];
