@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import HeatmapView from './HeatmapView';
 import CalendarView from './CalendarView';
+import COUNTRY_FACTS from './data/country-facts.json';
 const API_URL = '';
 
 const AIRPORTS = {
   vie: { name: 'Wien', cc: 'at', color: '#dc2626' },
   bts: { name: 'Bratislava', cc: 'sk', color: '#2563eb' },
   bud: { name: 'Budapest', cc: 'hu', color: '#16a34a' },
-  zur: {name: 'Zürich', cc: 'ch', color: '#f60e5d'}, 
+  zur: { name: 'Zürich', cc: 'ch', color: '#f60e5d' },
 };
 
 const COUNTRY_CC = {
@@ -259,40 +260,6 @@ export default function FlightScout() {
     modalBg: '#ffffff',
     pickerBg: 'rgba(0, 0, 0, 0.04)',
     chipBg: 'rgba(0, 0, 0, 0.04)',
-  };
-
-  const COUNTRY_FACTS = {
-    'Italien': ['Italien hat 58 UNESCO-Welterbestätten - mehr als jedes andere Land!', 'In Italien gibt es über 350 Pasta-Sorten!', 'Die Universität Bologna ist die älteste der Welt (1088).'],
-    'Spanien': ['Spanien hat die drittmeisten UNESCO-Welterbestätten weltweit!', 'La Tomatina: jährlich werden 150.000 Tomaten geworfen!', 'Spanien produziert 44% des weltweiten Olivenöls.'],
-    'Griechenland': ['Griechenland hat über 6.000 Inseln!', 'Die griechische Sprache wird seit 3.400 Jahren geschrieben.', 'Griechenland hat mehr archäologische Museen als jedes andere Land.'],
-    'Türkei': ['Istanbul liegt auf zwei Kontinenten gleichzeitig!', 'Der Weihnachtsmann (Nikolaus) stammt aus der heutigen Türkei.', 'Die Türkei hat über 80.000 Moscheen.'],
-    'Frankreich': ['Frankreich ist das meistbesuchte Land der Welt!', 'In Frankreich gibt es über 400 Käsesorten.', 'Der Eiffelturm wächst im Sommer um 15cm.'],
-    'Kroatien': ['Kings Landing aus Game of Thrones wurde in Dubrovnik gedreht!', 'Kroatien hat über 1.200 Inseln.', 'Die Krawatte wurde in Kroatien erfunden!'],
-    'Portugal': ['Portugal ist das älteste Land Europas mit gleichen Grenzen seit 1139!', 'Lissabon ist älter als Rom.', 'Portugal hat 850km Küste.'],
-    'Vereinigtes Königreich': ['London hat über 170 Museen!', 'Big Ben ist eigentlich der Name der Glocke, nicht des Turms.', 'Die Briten trinken täglich 165 Mio. Tassen Tee.'],
-    'Irland': ['Irland hat keine Schlangen!', 'Die irische Harfe ist das einzige Musikinstrument als Nationalsymbol.', 'Halloween stammt aus Irland.'],
-    'Niederlande': ['Die Niederlande haben mehr Fahrräder als Einwohner!', 'Amsterdam steht auf 11 Mio. Holzpfählen.', 'Orangen heißen auf Niederländisch "sinaasappel" (Chinas Apfel).'],
-    'Albanien': ['Albanien hat mehr Bunker als McDonalds - über 170.000!', 'Die albanische Flagge ist die einzige mit einem doppelköpfigen Adler.', 'Albanien hat einige der letzten wilden Strände Europas.'],
-    'Montenegro': ['Montenegros Bucht von Kotor ist der südlichste Fjord Europas!', 'Das Land hat nur 620.000 Einwohner.', 'Der Name bedeutet "Schwarzer Berg".'],
-    'Serbien': ['Belgrad ist eine der ältesten Städte Europas!', 'Serbien ist der größte Himbeer-Exporteur der Welt.', 'Nikola Tesla wurde in Serbien geboren.'],
-    'Bulgarien': ['Bulgarien ist das älteste Land Europas, das seinen Namen nie geändert hat!', 'Joghurt heißt dort "kiselo mlyako".', 'In Bulgarien nickt man für Nein und schüttelt für Ja.'],
-    'Rumänien': ['Rumäniens Parlamentspalast ist das zweitgrößte Gebäude der Welt!', 'Transsilvanien ist die Heimat von Dracula.', 'Rumänien hat das schnellste Internet Europas.'],
-    'Marokko': ['Marokkos Uni in Fès ist die älteste noch bestehende der Welt!', 'Marokko hat sowohl Atlantik- als auch Mittelmeerküste.', 'Tagine ist gleichzeitig das Gericht und der Kochtopf.'],
-    'Ungarn': ['Budapest hat das größte Thermalbad Europas!', 'Der Rubik-Würfel wurde in Ungarn erfunden.', 'Ungarn hat über 1.000 Thermalquellen.'],
-    'Tschechien': ['Prag hat mehr als 100 Kirchtürme!', 'Tschechien hat den höchsten Bierkonsum pro Kopf weltweit.', 'Das Wort "Roboter" kommt aus dem Tschechischen.'],
-    'Polen': ['Polen hat 17 UNESCO-Welterbestätten!', 'Krakaus Marktplatz ist der größte mittelalterliche Platz Europas.', 'Marie Curie wurde in Warschau geboren.'],
-    'Dänemark': ['Dänemark hat über 7.000 km Küste!', 'LEGO wurde in Dänemark erfunden.', 'Kopenhagen wurde 5x zur lebenswertesten Stadt gewählt.'],
-    'Schweden': ['In Schweden gibt es ein Eishotel, das jedes Jahr neu gebaut wird!', 'Schweden hat über 200.000 Inseln.', 'IKEA, Spotify und Minecraft kommen aus Schweden.'],
-    'Norwegen': ['Norwegens Küste ist 25.000 km lang - mit allen Fjorden!', 'Im Sommer geht die Sonne im Norden nie unter.', 'Norwegen hat den längsten Straßentunnel der Welt (24,5km).'],
-    'Island': ['Island hat keine Armee!', 'Das Althing ist das älteste Parlament der Welt (930 n.Chr.).', 'In Island gibt es mehr Schafe als Menschen.'],
-    'Ägypten': ['Die Pyramiden von Gizeh sind das letzte erhaltene Weltwunder der Antike!', 'Der Nil ist 6.650 km lang.', 'Kleopatra lebte zeitlich näher am iPhone als am Pyramidenbau.'],
-    'Malta': ['Malta hat die ältesten freistehenden Gebäude der Welt!', 'Malta ist kleiner als München.', 'Maltesisch ist die einzige semitische Sprache mit lateinischer Schrift.'],
-    'Zypern': ['Zypern hat 340 Sonnentage im Jahr!', 'Aphrodite soll an Zyperns Küste geboren worden sein.', 'Halloumi-Käse kommt aus Zypern.'],
-    'Bosnien und Herzegowina': ['Sarajevo war die erste Stadt Europas mit einer Straßenbahn!', 'Bosnien hat die letzte Urwald-Region Europas.', 'Der Balkan-Kaffee in Bosnien ist UNESCO Kulturerbe.'],
-    'Nordmazedonien': ['Ohrid-See ist einer der ältesten Seen der Welt!', 'Mutter Teresa wurde in Skopje geboren.', 'Das Land hat über 50 natürliche Seen.'],
-    'Slowenien': ['Über 60% Sloweniens ist mit Wald bedeckt!', 'Ljubljana wurde 2016 zur grünsten Hauptstadt Europas gewählt.', 'Slowenien hat nur 46km Küste.'],
-    'Belgien': ['Belgien produziert 220.000 Tonnen Schokolade pro Jahr!', 'Pommes Frites wurden in Belgien erfunden, nicht in Frankreich.', 'Brüssel hat die meisten Diplomaten pro km² weltweit.'],
-    'Finnland': ['Finnland hat über 180.000 Seen!', 'Finnen haben mehr Saunen als Autos.', 'Finnland ist das glücklichste Land der Welt (UN-Ranking).'],
   };
 
   const getCountryFact = (country) => {
@@ -1261,10 +1228,39 @@ export default function FlightScout() {
               </div>
             )}
 
+            {/* Starttag (Wochentag) – prominent über dem Datum */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>
+                Hinflug an welchem Wochentag?
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                {WEEKDAYS.map((day, i) => (
+                  <div key={day} className={`weekday-btn ${i === startWeekday ? 'start' : ''}`}
+                    onClick={() => {
+                      setStartWeekday(i);
+                      // Sync startDate to next occurrence of this weekday
+                      if (startDate) {
+                        const d = new Date(startDate + 'T00:00:00');
+                        if (!isNaN(d.getTime())) {
+                          const jsTarget = i === 6 ? 0 : i + 1; // convert Mon=0 to JS Sun=0
+                          let diff = jsTarget - d.getDay();
+                          if (diff <= 0) diff += 7;
+                          if (diff === 7) diff = 0; // already on that day
+                          if (diff > 0) {
+                            d.setDate(d.getDate() + diff);
+                            setStartDate(d.toISOString().split('T')[0]);
+                          }
+                        }
+                      }
+                    }}>{day}</div>
+                ))}
+              </div>
+            </div>
+
             {/* Date Range + Persons */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Frühester Hinflug</label>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Reisefenster von</label>
                 <input type="date" value={startDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => {
                   const newStart = e.target.value;
                   setStartDate(newStart);
@@ -1277,7 +1273,7 @@ export default function FlightScout() {
                 }} className="input-field" />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Spätester Hinflug</label>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Reisefenster bis</label>
                 <input type="date" value={endDate} min={startDate || new Date().toISOString().split('T')[0]} max={startDate ? (() => { const d = new Date(startDate); d.setMonth(d.getMonth() + 3); return d.toISOString().split('T')[0]; })() : undefined} onChange={(e) => setEndDate(e.target.value)} className="input-field" />
                 <div style={{ fontSize: '0.75rem', color: t.textDim, marginTop: '0.35rem' }}>Rückflug ergibt sich aus Reisedauer · max 3 Monate</div>
               </div>
@@ -1345,9 +1341,6 @@ export default function FlightScout() {
               >
                 <span style={{ fontSize: '0.75rem', transition: 'transform 0.2s', transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
                 Erweiterte Optionen
-                {startWeekday !== 4 && (
-                  <span style={{ background: '#6366f1', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', color: 'white', fontWeight: 500 }}>{WEEKDAYS[startWeekday]}</span>
-                )}
                 {minDepartureHour !== 14 && (
                   <span style={{ background: '#6366f1', padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', color: 'white', fontWeight: 500 }}>ab {minDepartureHour}:00</span>
                 )}
@@ -1358,38 +1351,9 @@ export default function FlightScout() {
 
               {showAdvanced && (
                 <div style={{ background: t.pickerBg, borderRadius: '12px', padding: '1.25rem' }}>
-                  {/* Starttag */}
+                  {/* Frühester Hinflug Uhrzeit */}
                   <div style={{ marginBottom: '1.25rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, color: t.textMuted }}>
-                      Starttag
-                    </label>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      {WEEKDAYS.map((day, i) => (
-                        <div key={day} className={`weekday-btn ${i === startWeekday ? 'start' : ''}`}
-                          onClick={() => {
-                            setStartWeekday(i);
-                            // Sync startDate to next occurrence of this weekday
-                            if (startDate) {
-                              const d = new Date(startDate + 'T00:00:00');
-                              if (!isNaN(d.getTime())) {
-                                const jsTarget = i === 6 ? 0 : i + 1; // convert Mon=0 to JS Sun=0
-                                let diff = jsTarget - d.getDay();
-                                if (diff <= 0) diff += 7;
-                                if (diff === 7) diff = 0; // already on that day
-                                if (diff > 0) {
-                                  d.setDate(d.getDate() + diff);
-                                  setStartDate(d.toISOString().split('T')[0]);
-                                }
-                              }
-                            }
-                          }}>{day}</div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Frühester Hinflug */}
-                  <div style={{ marginBottom: '1.25rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Frühester Hinflug</label>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: t.textMuted }}>Frühester Abflug (Uhrzeit)</label>
                     <div style={{ position: 'relative', maxWidth: '200px' }}>
                       <input type="text" inputMode="numeric" value={minDepartureHour} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setMinDepartureHour(v === '' ? '' : Math.min(parseInt(v), 23)); }} onBlur={() => { if (minDepartureHour === '' || minDepartureHour < 0) setMinDepartureHour(0); }} className="input-field" style={{ paddingRight: '4rem' }} />
                       <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: t.textDim }}>:00 Uhr</span>
@@ -1443,7 +1407,6 @@ export default function FlightScout() {
               const effDurations = flexibleDuration
                 ? [...new Set(durations.flatMap(d => [d - 1, d, d + 1]).filter(d => d >= 1 && d <= 7))].sort((a, b) => a - b)
                 : durations;
-              // Build weekday pairs: Fr→So, Fr→Mo
               const WD = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
               const pairs = effDurations.map(d => `${WD[startWeekday]}→${WD[(startWeekday + d) % 7]}`);
               const uniquePairs = [...new Set(pairs)];
@@ -1451,9 +1414,48 @@ export default function FlightScout() {
               const sdFmt = new Date(startDate + 'T00:00:00').toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' });
               const edFmt = new Date(endDate + 'T00:00:00').toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' });
               const airportNames = selectedAirports.map(a => AIRPORTS[a]?.name || a).join(', ');
+
+              // Anzahl Wochentag-Vorkommen im Zeitraum berechnen
+              const startD = new Date(startDate + 'T00:00:00');
+              const endD = new Date(endDate + 'T00:00:00');
+              const totalDays = Math.floor((endD - startD) / 86400000) + 1;
+              const jsTarget = startWeekday === 6 ? 0 : startWeekday + 1;
+              let firstOffset = -1;
+              for (let i = 0; i < 7 && i < totalDays; i++) {
+                const d = new Date(startD); d.setDate(d.getDate() + i);
+                if (d.getDay() === jsTarget) { firstOffset = i; break; }
+              }
+              const occurrences = firstOffset < 0 ? 0 : Math.floor((totalDays - firstOffset - 1) / 7) + 1;
+              const tripCount = occurrences * selectedAirports.length * effDurations.length;
+
               return (
-                <div style={{ textAlign: 'center', fontSize: '0.8rem', color: t.textDim, marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                  Suche alle <b>{pairsText}</b> Flüge im Zeitraum {sdFmt} – {edFmt} ab {airportNames}
+                <div style={{
+                  background: theme === 'dark' ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.06)',
+                  border: `1px solid ${theme === 'dark' ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.2)'}`,
+                  borderRadius: '14px',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.85rem',
+                }}>
+                  <div style={{
+                    fontSize: '1.5rem', lineHeight: 1, flexShrink: 0,
+                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                    fontWeight: 800, fontFamily: 'Space Mono, monospace',
+                  }}>{occurrences > 0 ? occurrences : '–'}</div>
+                  <div style={{ flex: 1, minWidth: 0, lineHeight: 1.4 }}>
+                    <div style={{ fontSize: '0.95rem', color: t.text, fontWeight: 600 }}>
+                      {occurrences > 0
+                        ? <>Sucht <b>{occurrences}× {WD[startWeekday]}-Trips</b> ({pairsText})</>
+                        : <span style={{ color: '#ef4444' }}>Kein {WD[startWeekday]} im Zeitraum</span>}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: t.textMuted, marginTop: '0.15rem' }}>
+                      {sdFmt} – {edFmt} · ab {airportNames} · max {maxPrice}€
+                      {tripCount > 0 && <span style={{ color: t.textDim }}> · {tripCount} API-Suchen</span>}
+                    </div>
+                  </div>
                 </div>
               );
             })()}
