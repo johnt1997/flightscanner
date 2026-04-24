@@ -1,100 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import HeatmapView from './HeatmapView';
 import CalendarView from './CalendarView';
+import Flag from './components/Flag';
 import COUNTRY_FACTS from './data/country-facts.json';
+import {
+  AIRPORTS, COUNTRY_CC, shortCountry, WEEKDAYS,
+  CITY_DB, ALL_CITIES, COUNTRIES, PRESETS, PRESET_KEYS,
+} from './data/constants';
+import { getWeatherIcon, getWeatherLabel, weatherCacheKey, fetchWeatherData } from './utils/weather';
+
 const API_URL = '';
-
-const AIRPORTS = {
-  vie: { name: 'Wien', cc: 'at', color: '#dc2626' },
-  bts: { name: 'Bratislava', cc: 'sk', color: '#2563eb' },
-  bud: { name: 'Budapest', cc: 'hu', color: '#16a34a' },
-  zur: { name: 'Zürich', cc: 'ch', color: '#f60e5d' },
-};
-
-const COUNTRY_CC = {
-  'Italien': 'it', 'Spanien': 'es', 'Vereinigtes Königreich': 'gb', 'Irland': 'ie',
-  'Frankreich': 'fr', 'Niederlande': 'nl', 'Belgien': 'be', 'Dänemark': 'dk',
-  'Schweden': 'se', 'Lettland': 'lv', 'Litauen': 'lt', 'Norwegen': 'no',
-  'Finnland': 'fi', 'Griechenland': 'gr', 'Türkei': 'tr', 'Albanien': 'al',
-  'Serbien': 'rs', 'Rumänien': 'ro', 'Bulgarien': 'bg', 'Kroatien': 'hr',
-  'Bosnien und Herzegowina': 'ba', 'Montenegro': 'me', 'Nordmazedonien': 'mk',
-  'Slowakei': 'sk', 'Slowenien': 'si', 'Tschechische Republik': 'cz',
-  'Polen': 'pl', 'Portugal': 'pt', 'Marokko': 'ma', 'Ägypten': 'eg',
-  'Island': 'is', 'Georgien': 'ge', 'Malta': 'mt', 'Österreich': 'at', 'Ungarn': 'hu',
-  'Deutschland': 'de', 'Schweiz': 'ch', 'Zypern': 'cy',
-};
-
-const COUNTRY_SHORT = {
-  'Vereinigtes Königreich': 'UK', 'Bosnien und Herzegowina': 'Bosnien',
-  'Tschechische Republik': 'Tschechien', 'Nordmazedonien': 'N. Mazedonien',
-};
-const shortCountry = (name) => COUNTRY_SHORT[name] || name;
-
-const Flag = ({ cc, size = 16, style = {} }) => cc ? (
-  <img src={`https://flagcdn.com/w40/${cc}.png`} alt="" width={size} height={Math.round(size * 0.75)}
-    style={{ borderRadius: 2, verticalAlign: 'middle', ...style }} />
-) : null;
-
-const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-
-const CITY_DB = {
-  'Italien': ['Mailand', 'Rom', 'Bologna', 'Venedig', 'Neapel', 'Catania', 'Palermo', 'Bari', 'Pisa', 'Turin', 'Lamezia Terme', 'Trapani'],
-  'Spanien': ['Barcelona', 'Madrid', 'Malaga', 'Palma de Mallorca'],
-  'Vereinigtes Königreich': ['London', 'Edinburgh', 'Manchester', 'Liverpool', 'Newcastle upon Tyne'],
-  'Irland': ['Dublin'],
-  'Frankreich': ['Paris'],
-  'Niederlande': ['Amsterdam'],
-  'Belgien': ['Brüssel'],
-  'Dänemark': ['Kopenhagen'],
-  'Schweden': ['Stockholm'],
-  'Lettland': ['Riga'],
-  'Litauen': ['Vilnius'],
-  'Norwegen': ['Oslo'],
-  'Finnland': ['Helsinki'],
-  'Griechenland': ['Athen', 'Thessaloniki'],
-  'Türkei': ['Istanbul', 'Antalya'],
-  'Albanien': ['Tirana'],
-  'Serbien': ['Belgrad'],
-  'Rumänien': ['Bukarest'],
-  'Bulgarien': ['Sofia'],
-  'Kroatien': ['Zagreb', 'Split', 'Dubrovnik'],
-  'Bosnien und Herzegowina': ['Sarajevo'],
-  'Montenegro': ['Podgorica'],
-  'Nordmazedonien': ['Skopje'],
-  'Slowakei': ['Košice'],
-  'Slowenien': ['Ljubljana'],
-  'Tschechische Republik': ['Prag'],
-  'Polen': ['Warschau', 'Krakau', 'Danzig', 'Breslau', 'Kattowitz'],
-  'Portugal': ['Lissabon'],
-  'Marokko': ['Marrakesch'],
-  'Ägypten': ['Kairo'],
-  'Island': ['Reykjavik'],
-  'Georgien': ['Kutaissi'],
-  'Malta': ['Malta'],
-};
-
-const ALL_CITIES = Object.entries(CITY_DB).flatMap(([country, cities]) =>
-  cities.map(city => ({ city, country }))
-);
-
-const COUNTRIES = [
-  'Griechenland', 'Türkei', 'Albanien', 'Montenegro',
-  'Serbien', 'Nordmazedonien', 'Bosnien und Herzegowina',
-  'Rumänien', 'Vereinigtes Königreich',
-  'Irland', 'Niederlande', 'Belgien', 'Dänemark', 'Schweden',
-  'Norwegen', 'Marokko', 'Frankreich',
-  'Malta', 'Zypern', 'Spanien', 'Portugal',
-  'Italien', 'Bulgarien', 'Schweiz', 'Polen', 'Lettland', 'Deutschland'
-];
-
-// Preset = vordefinierte Wochentag/Dauer-Kombinationen
-const PRESETS = {
-  weekend:     { weekday: 4, durations: [2],    label: 'Wochenende',   sub: 'Fr → So' },
-  longWeekend: { weekday: 4, durations: [3],    label: 'Verlängert',   sub: 'Fr → Mo' },
-  midweek:     { weekday: 1, durations: [2],    label: 'Wochenmitte',  sub: 'Di → Do' },
-  weekly:      { weekday: 0, durations: [7],    label: 'Wochentrip',   sub: 'Mo → Mo' },
-};
-const PRESET_KEYS = ['weekend', 'longWeekend', 'midweek', 'weekly'];
 
 export default function FlightScout() {
   // Theme
@@ -154,44 +69,12 @@ export default function FlightScout() {
   // Weather cache
   const [weatherCache, setWeatherCache] = useState({});
 
-  const getWeatherIcon = (code) => {
-    if (code <= 1) return '☀️';
-    if (code <= 3) return '⛅';
-    if (code <= 48) return '☁️';
-    if (code <= 67) return '🌧️';
-    if (code <= 77) return '❄️';
-    if (code <= 82) return '🌧️';
-    if (code <= 86) return '❄️';
-    return '⛈️';
-  };
-
-  const getWeatherLabel = (code) => {
-    if (code <= 0) return 'Klar';
-    if (code <= 1) return 'Überwiegend klar';
-    if (code <= 2) return 'Teilweise bewölkt';
-    if (code <= 3) return 'Bewölkt';
-    if (code <= 48) return 'Nebelig';
-    if (code <= 55) return 'Nieselregen';
-    if (code <= 67) return 'Regen';
-    if (code <= 77) return 'Schnee';
-    if (code <= 82) return 'Regenschauer';
-    if (code <= 86) return 'Schneeschauer';
-    return 'Gewitter';
-  };
-
   const fetchWeather = async (lat, lon, startDate, endDate) => {
-    const key = `${lat.toFixed(1)}_${lon.toFixed(1)}_${startDate}`;
+    const key = weatherCacheKey(lat, lon, startDate);
     if (weatherCache[key] !== undefined) return;
     setWeatherCache(prev => ({ ...prev, [key]: null }));
-    try {
-      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max&start_date=${startDate}&end_date=${endDate}&timezone=auto`);
-      const data = await res.json();
-      const codes = data?.daily?.weathercode || [];
-      const temps = data?.daily?.temperature_2m_max || [];
-      const worst = codes.length ? Math.max(...codes) : null;
-      const avgTemp = temps.length ? Math.round(temps.reduce((a, b) => a + b, 0) / temps.length) : null;
-      setWeatherCache(prev => ({ ...prev, [key]: { code: worst, temp: avgTemp } }));
-    } catch { setWeatherCache(prev => ({ ...prev, [key]: -1 })); }
+    const result = await fetchWeatherData(lat, lon, startDate, endDate);
+    setWeatherCache(prev => ({ ...prev, [key]: result }));
   };
 
   // Favorites (localStorage)
@@ -206,6 +89,8 @@ export default function FlightScout() {
     return saved ? JSON.parse(saved) : null;
   });
   const [showAuth, setShowAuth] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+  const [resultsView, setResultsView] = useState('list'); // 'list' | 'map'
   const [authMode, setAuthMode] = useState('login');
   const [authUsername, setAuthUsername] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -295,9 +180,6 @@ export default function FlightScout() {
   useEffect(() => {
     if (!user && results.length === 0) fetchPublicDeals();
   }, []);
-  useEffect(() => {
-    if (activeTab === 'deals' && !publicDeals && !loadingPublicDeals) fetchPublicDeals();
-  }, [activeTab]);
 
   // Smart sync: startDate -> endDate (same month end) + startWeekday
   useEffect(() => {
@@ -1021,108 +903,13 @@ export default function FlightScout() {
         <>
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          {[['deals', 'Top Deals'], ['search', 'Suche'], ['heatmap', 'Heatmap'], ['calendar', 'Kalender'], ['archive', 'Archiv'], ['about', 'About'], ...(user && user.username === 'john1997' ? [['admin', 'Admin']] : [])].map(([key, label]) => (
+          {[['search', 'Suche'], ['calendar', 'Kalender'], ['archive', 'Archiv'], ...(user && user.username === 'john1997' ? [['admin', 'Admin']] : [])].map(([key, label]) => (
             <button key={key} onClick={() => { if ((key === 'archive' || key === 'admin') && !user) { setShowAuth(true); return; } setActiveTab(key); }}
               className="tab-btn" style={{ background: activeTab === key ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : t.chipBg, color: activeTab === key ? 'white' : t.text }}>
               {label}
             </button>
           ))}
         </div>
-
-        {/* === TOP DEALS TAB === */}
-        {activeTab === 'deals' && (
-          <div>
-            {loadingPublicDeals && (
-              <div className="glass" style={{ textAlign: 'center', padding: '2rem', marginBottom: '1.5rem' }}>
-                Lade Top-Deals...
-              </div>
-            )}
-            {publicDeals && publicDeals.airports && Object.keys(publicDeals.airports).length > 0 ? (
-              <>
-                {Object.entries(publicDeals.airports).map(([apCode, apData]) => (
-                  <div key={apCode} style={{ marginBottom: '2.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem', padding: '0 0.25rem' }}>
-                      <Flag cc={AIRPORTS[apCode]?.cc} size={22} />
-                      <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 700 }}>Ab {apData.name}</h2>
-                      <span style={{ background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', padding: '0.2rem 0.65rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600 }}>
-                        {apData.deals.length} Deals
-                      </span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
-                      {apData.deals.map((deal, i) => {
-                        const priceRatio = deal.price / 100;
-                        const priceColor = priceRatio < 0.3 ? '#22c55e' : priceRatio < 0.5 ? '#84cc16' : priceRatio < 0.7 ? '#eab308' : '#f97316';
-                        const depDate = deal.departure_date ? new Date(deal.departure_date) : null;
-                        const retDate = deal.return_date ? new Date(deal.return_date) : null;
-                        const dateStr = depDate && retDate
-                          ? `${depDate.toLocaleDateString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit' })} – ${retDate.toLocaleDateString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit' })}`
-                          : '';
-                        const cc = COUNTRY_CC[deal.country] || COUNTRY_CC[deal.city];
-                        const isBest = i === 0;
-                        return (
-                          <a key={i} href={deal.url} target="_blank" rel="noopener noreferrer"
-                            className={`landing-deal-card${isBest ? ' best-deal-card' : ''}`}
-                            style={{
-                              display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                              background: isBest
-                                ? (theme === 'dark'
-                                  ? 'linear-gradient(135deg, rgba(255,215,0,0.06) 0%, rgba(255,255,255,0.04) 50%, rgba(255,215,0,0.03) 100%)'
-                                  : 'linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,255,255,0.9) 50%, rgba(255,215,0,0.05) 100%)')
-                                : (theme === 'dark'
-                                  ? `linear-gradient(135deg, rgba(255,255,255,0.04) 0%, ${priceColor}08 100%)`
-                                  : `linear-gradient(135deg, rgba(255,255,255,0.8) 0%, ${priceColor}12 100%)`),
-                              border: isBest ? '1px solid rgba(255,215,0,0.3)' : `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
-                              borderRadius: '16px', padding: '1.25rem', textDecoration: 'none', color: 'inherit',
-                              transition: 'all 0.25s ease', cursor: 'pointer', position: 'relative', overflow: 'hidden', minHeight: '130px',
-                            }}
-                          >
-                            <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '80px', height: '80px',
-                              background: isBest ? 'radial-gradient(circle, rgba(255,215,0,0.25) 0%, transparent 70%)' : `radial-gradient(circle, ${priceColor}20 0%, transparent 70%)`,
-                              borderRadius: '50%', pointerEvents: 'none' }} />
-                            {isBest && (
-                              <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                <span style={{ fontSize: '0.7rem' }}>&#9733;</span>
-                                <span className="best-deal-badge">Best Deal</span>
-                              </div>
-                            )}
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                <Flag cc={cc} size={18} />
-                                <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{deal.city}</span>
-                              </div>
-                              <div style={{ fontSize: '0.8rem', color: t.textMuted }}>{shortCountry(deal.country)}</div>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.75rem' }}>
-                              <div style={{ fontSize: '0.75rem', color: t.textDim }}>{dateStr}</div>
-                              <div style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, fontSize: '1.4rem', color: isBest ? '#ffd700' : priceColor, lineHeight: 1 }}>
-                                {Math.round(deal.price)}€
-                              </div>
-                            </div>
-                            <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', opacity: 0.3, fontSize: '0.8rem' }}>&#8599;</div>
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-                <div style={{ textAlign: 'center', color: t.textDim, fontSize: '0.75rem', marginTop: '1.5rem' }}>
-                  Preise pro Person · Hin- und Rückflug · Economy
-                </div>
-                {publicDeals.updated_at && (
-                  <div style={{ textAlign: 'center', color: t.textDim, fontSize: '0.75rem', marginTop: '0.25rem', opacity: 0.6 }}>
-                    Zuletzt aktualisiert: {new Date(publicDeals.updated_at + 'Z').toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                )}
-              </>
-            ) : (!loadingPublicDeals && (
-              <div className="glass" style={{ textAlign: 'center', padding: '3rem' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>&#9992;</div>
-                <h3 style={{ margin: '0 0 0.5rem 0' }}>Noch keine Deals</h3>
-                <p style={{ color: t.textMuted, margin: 0 }}>Die ersten Deals werden am Montag gescannt — schau dann wieder rein!</p>
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* === SEARCH TAB === */}
         {activeTab === 'search' && (
@@ -1522,34 +1309,55 @@ export default function FlightScout() {
           {/* === GROUPED RESULTS === */}
           {groupedResults.length > 0 && (
             <div className="glass" style={{ padding: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
                 <h2 style={{ margin: 0, fontSize: '1.5rem' }}>
                   {groupedResults.length} Ziele, {results.length} Deals
                   {isSearching && <span style={{ fontSize: '0.9rem', color: t.textMuted, fontWeight: 400, marginLeft: '0.75rem' }}>live...</span>}
                 </h2>
-                {!isSearching && (
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    {user && !showSaveSearch && (
-                      <button onClick={() => setShowSaveSearch(true)} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.75rem 1.25rem', borderRadius: '12px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>
-                        Speichern
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  {/* Liste / Karte Toggle */}
+                  <div style={{ display: 'flex', borderRadius: '12px', overflow: 'hidden', border: `1px solid ${t.inputBorder}` }}>
+                    {[['list', 'Liste'], ['map', 'Karte']].map(([v, lbl]) => (
+                      <button key={v} onClick={() => setResultsView(v)}
+                        style={{
+                          padding: '0.6rem 1rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                          background: resultsView === v ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'transparent',
+                          color: resultsView === v ? 'white' : t.textMuted, transition: 'all 0.2s ease',
+                        }}>
+                        {lbl}
                       </button>
-                    )}
-                    {showSaveSearch && (
-                      <>
-                        <input type="text" value={saveSearchName} onChange={e => setSaveSearchName(e.target.value)} placeholder="Name..." onKeyDown={e => e.key === 'Enter' && saveCurrentSearch()}
-                          style={{ padding: '0.5rem 0.75rem', background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: '8px', color: t.text, fontSize: '0.875rem', width: '160px' }} />
-                        <button onClick={saveCurrentSearch} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.5rem 1rem', borderRadius: '8px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>OK</button>
-                      </>
-                    )}
-                    <button onClick={downloadPdf} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.75rem 1.25rem', borderRadius: '12px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>
-                      PDF
-                    </button>
+                    ))}
                   </div>
-                )}
+                  {!isSearching && (
+                    <>
+                      {user && !showSaveSearch && (
+                        <button onClick={() => setShowSaveSearch(true)} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.6rem 1rem', borderRadius: '12px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>
+                          Speichern
+                        </button>
+                      )}
+                      {showSaveSearch && (
+                        <>
+                          <input type="text" value={saveSearchName} onChange={e => setSaveSearchName(e.target.value)} placeholder="Name..." onKeyDown={e => e.key === 'Enter' && saveCurrentSearch()}
+                            style={{ padding: '0.5rem 0.75rem', background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: '8px', color: t.text, fontSize: '0.875rem', width: '160px' }} />
+                          <button onClick={saveCurrentSearch} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.5rem 1rem', borderRadius: '8px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>OK</button>
+                        </>
+                      )}
+                      <button onClick={downloadPdf} style={{ background: t.chipBg, border: `1px solid ${t.inputBorder}`, padding: '0.6rem 1rem', borderRadius: '12px', color: t.text, cursor: 'pointer', fontWeight: 500 }}>
+                        PDF
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               {saveSearchError && <p style={{ color: '#ef4444', fontSize: '0.875rem', marginBottom: '1rem' }}>{saveSearchError}</p>}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {resultsView === 'map' && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <HeatmapView results={results} />
+                </div>
+              )}
+
+              <div style={{ display: resultsView === 'list' ? 'flex' : 'none', flexDirection: 'column', gap: '0.75rem' }}>
                 {groupedResults.map((group) => {
                   const isExpanded = expandedCity === group.city;
                   return (
@@ -1687,9 +1495,6 @@ export default function FlightScout() {
           </>
         )}
 
-        {/* === HEATMAP TAB === */}
-        {activeTab === 'heatmap' && <HeatmapView results={results} />}
-
         {/* === CALENDAR TAB === */}
         <div style={{ display: activeTab === 'calendar' ? 'block' : 'none' }}>
           <CalendarView airports={selectedAirports} maxPrice={maxPrice} duration={durations[0] || 2} adults={adults} blacklistCountries={blacklistCountries} token={user?.token} countryCC={COUNTRY_CC} />
@@ -1800,27 +1605,6 @@ export default function FlightScout() {
           </div>
         )}
 
-        {/* === ABOUT TAB === */}
-        {activeTab === 'about' && (
-          <div className="glass" style={{ padding: '2rem', maxWidth: '640px', margin: '0 auto', lineHeight: 1.7 }}>
-            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem' }}>Über mich</h2>
-            <p style={{ color: t.text, marginBottom: '1rem' }}>
-              Hallo, ich heiße John — SAP-Entwickler aus Wien, der tagsüber Treasury Management und Regulatory Reporting (IFRS 9, SA-CCR) schupft und abends an Nebenprojekten wie diesem bastelt.
-            </p>
-            <p style={{ color: t.text, marginBottom: '1rem' }}>
-              Flight Scout ist entstanden, weil ich jedes Wochenende manuell Skyscanner durchgescrollt habe — irgendwann war mir das zu blöd und ich hab's automatisiert. Daneben arbeite ich an meiner Masterarbeit (TU Graz) über einen RAG-Chatbot für den Geschichtsunterricht und einer Flutter-App zum Bewerten von Guinness-Pints.
-            </p>
-           
-            <p style={{ color: t.text }}>
-              Wenn ich nicht code, spiele ich Schach oder schaue Fußball.
-            </p>
-
-             <p>
-              Feedback gerne an john.tusha@student.tugraz.at
-            </p>
-          </div>
-        )}
-
         {/* === ADMIN TAB === */}
         {activeTab === 'admin' && user && user.username === 'john1997' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -1883,7 +1667,13 @@ export default function FlightScout() {
         )}
 
         {/* Footer */}
-        <div style={{ textAlign: 'center', marginTop: '3rem', color: t.textDim, fontSize: '0.875rem' }}>Flight Scout</div>
+        <div style={{ textAlign: 'center', marginTop: '3rem', color: t.textDim, fontSize: '0.875rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem' }}>
+          <span>Flight Scout</span>
+          <span style={{ opacity: 0.4 }}>·</span>
+          <span onClick={() => setShowAbout(true)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' }}>
+            Über mich
+          </span>
+        </div>
         </>
         )}
       </div>
@@ -1912,6 +1702,28 @@ export default function FlightScout() {
                 <>Bereits ein Konto? <span onClick={() => { setAuthMode('login'); setAuthError(''); }} style={{ color: '#6366f1', cursor: 'pointer' }}>Anmelden</span></>
               )}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* About Modal */}
+      {showAbout && (
+        <div className="modal-overlay" onClick={() => setShowAbout(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ width: 560, lineHeight: 1.7 }}>
+            <h2 style={{ margin: '0 0 1.25rem 0', textAlign: 'center', fontSize: '1.4rem' }}>Über mich</h2>
+            <p style={{ color: t.text, marginBottom: '1rem', fontSize: '0.95rem' }}>
+              Hallo, ich heiße John — SAP-Entwickler aus Wien, der tagsüber Treasury Management und Regulatory Reporting (IFRS 9, SA-CCR) schupft und abends an Nebenprojekten wie diesem bastelt.
+            </p>
+            <p style={{ color: t.text, marginBottom: '1rem', fontSize: '0.95rem' }}>
+              Flight Scout ist entstanden, weil ich jedes Wochenende manuell Skyscanner durchgescrollt habe — irgendwann war mir das zu blöd und ich hab&apos;s automatisiert. Daneben arbeite ich an meiner Masterarbeit (TU Graz) über einen RAG-Chatbot für den Geschichtsunterricht und einer Flutter-App zum Bewerten von Guinness-Pints.
+            </p>
+            <p style={{ color: t.text, marginBottom: '1rem', fontSize: '0.95rem' }}>
+              Wenn ich nicht code, spiele ich Schach oder schaue Fußball.
+            </p>
+            <p style={{ color: t.textMuted, fontSize: '0.88rem', margin: '0 0 1.25rem 0' }}>
+              Feedback gerne an <a href="mailto:john.tusha@student.tugraz.at" style={{ color: '#6366f1' }}>john.tusha@student.tugraz.at</a>
+            </p>
+            <button onClick={() => setShowAbout(false)} className="btn-primary" style={{ width: '100%' }}>Schließen</button>
           </div>
         </div>
       )}
